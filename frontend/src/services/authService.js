@@ -19,10 +19,22 @@ export const authService = {
   },
 
   // Verificar autenticación
+    // Verificar autenticación - VERSIÓN MEJORADA
   checkAuth: async () => {
-    const response = await api.get('/auth/verificar-autenticacion');
-    console.log('🔐 [AUTH SERVICE] Verificar autenticación:', response.data);
-    return response.data;
+    try {
+      console.log('🔐 [AUTH SERVICE] === INICIANDO checkAuth ===');
+      const response = await api.get('/auth/verificar-autenticacion');
+      console.log('🔐 [AUTH SERVICE] Respuesta checkAuth:', response.data);
+      console.log('🔐 [AUTH SERVICE] === FIN checkAuth ===');
+      return response.data;
+    } catch (error) {
+      console.error('❌ [AUTH SERVICE] Error en checkAuth:', error);
+      // ⚠️ IMPORTANTE: Si hay error, retornamos success: false
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Error de autenticación' 
+      };
+    }
   },
 
   // Obtener perfil

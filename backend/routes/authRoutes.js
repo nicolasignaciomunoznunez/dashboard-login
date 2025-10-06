@@ -1,3 +1,4 @@
+// routes/authRoutes.js - VERSIÓN CORREGIDA
 import express from "express";
 import {
     registrar,
@@ -9,7 +10,10 @@ import {
     verificarAutenticacion,
     obtenerPerfil
 } from "../controllers/authController.js";
-import { verificarToken } from "../middlewares/verificarToken.js";
+import { 
+  verificarToken, 
+  verificarTokenOpcional  // ✅ Importar ambas funciones
+} from "../middlewares/verificarToken.js";
 
 const router = express.Router();
 
@@ -20,8 +24,10 @@ router.post("/iniciar-sesion", iniciarSesion);
 router.post("/olvide-contraseña", olvideContraseña);
 router.post("/restablecer-contraseña/:token", restablecerContraseña);
 
-// Rutas protegidas
-router.get("/verificar-autenticacion", verificarToken, verificarAutenticacion);
+// ✅ RUTA CORREGIDA: Usar middleware OPCIONAL para verificar-autenticacion
+router.get("/verificar-autenticacion", verificarTokenOpcional, verificarAutenticacion);
+
+// Rutas protegidas (requieren autenticación)
 router.get("/perfil", verificarToken, obtenerPerfil);
 router.post("/cerrar-sesion", verificarToken, cerrarSesion);
 

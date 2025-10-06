@@ -213,30 +213,46 @@ export const restablecerContraseña = async (req, res) => {
 };
 
 export const verificarAutenticacion = async (req, res) => {
-	try {
-		const usuario = await Usuario.buscarPorId(req.usuarioId);
-		
-		if (!usuario) {
-			return res.status(400).json({ success: false, message: "Usuario no encontrado" });
-		}
+  try {
+    console.log('🔐 [AUTH CONTROLLER] Verificando autenticación - usuarioId:', req.usuarioId);
+    
+    // ✅ Si no hay usuarioId, significa que no está autenticado
+    if (!req.usuarioId || !req.usuario) {
+      console.log('❌ [AUTH CONTROLLER] Usuario NO autenticado');
+      return res.status(200).json({ 
+        success: false, 
+        message: "No autenticado",
+        usuario: null 
+      });
+    }
 
-		const usuarioSinContraseña = {
-			id: usuario.id,
-			email: usuario.email,
-			nombre: usuario.nombre,
-			rol: usuario.rol,
-			estaVerificado: usuario.estaVerificado,
-			ultimoInicioSesion: usuario.ultimoInicioSesion,
-			creadoEn: usuario.creadoEn,
-			actualizadoEn: usuario.actualizadoEn
-		};
+    const usuarioSinContraseña = {
+      id: req.usuario.id,
+      email: req.usuario.email,
+      nombre: req.usuario.nombre,
+      rol: req.usuario.rol,
+      estaVerificado: req.usuario.estaVerificado,
+      ultimoInicioSesion: req.usuario.ultimoInicioSesion,
+      creadoEn: req.usuario.creadoEn,
+      actualizadoEn: req.usuario.actualizadoEn
+    };
 
-		res.status(200).json({ success: true, usuario: usuarioSinContraseña });
-	} catch (error) {
-		console.log("Error en verificarAutenticacion:", error);
-		res.status(400).json({ success: false, message: error.message });
-	}
+    console.log('✅ [AUTH CONTROLLER] Usuario autenticado:', usuarioSinContraseña.email);
+    res.status(200).json({ 
+      success: true, 
+      usuario: usuarioSinContraseña 
+    });
+  } catch (error) {
+    console.log("Error en verificarAutenticacion:", error);
+    res.status(200).json({  // ✅ Cambiar a 200 para que el frontend pueda manejarlo
+      success: false, 
+      message: "Error de autenticación",
+      usuario: null
+    });
+  }
 };
+
+
 
 export const obtenerPerfil = async (req, res) => {
 	try {

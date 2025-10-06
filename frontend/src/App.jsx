@@ -1,9 +1,9 @@
+// App.jsx - VERSIÓN CON LANDING PAGE
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react'; // ✅ Agregar useEffect
+import { useEffect, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
-import { authService } from './services/authService'; // ✅ Agregar authService
+import { authService } from './services/authService';
 import Layout from './components/layout/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -12,80 +12,88 @@ import PlantaDetalle from './pages/PlantaDetalle';
 import Incidencias from './pages/Incidencias';
 import Mantenimiento from './pages/Mantenimiento';
 import Reportes from './pages/Reportes';
+import LandingPage from './pages/LandingPage'; // ✅ Agregar Landing Page
 
 function App() {
   const { isAuthenticated, login, setLoading, isLoading } = useAuthStore();
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // ✅ Efecto para verificar autenticación al cargar la app
+  console.log('🔄 [APP] Render - authChecked:', authChecked, 'isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
+
+  // ✅ Efecto que se ejecuta SOLO UNA VEZ al montar la app
   useEffect(() => {
-    const checkAuth = async () => {
+    console.log('🔄 [APP] useEffect montado - verificando autenticación inicial');
+    
+    const verifyInitialAuth = async () => {
       try {
-        console.log('🔐 [APP] Verificando autenticación...');
-        const response = await authService.checkAuth();
+        setLoading(true);
+        console.log('🔐 [APP] Llamando a checkAuth...');
         
-        console.log('🔐 [APP] Respuesta verificación:', response);
+        const result = await authService.checkAuth();
+        console.log('🔐 [APP] Resultado de checkAuth:', result);
         
-        // ✅ CORRECCIÓN: Usar response.usuario
-        if (response.success && response.usuario) {
-          console.log('✅ [APP] Usuario autenticado:', response.usuario);
-          login(response.usuario); // No necesitamos token porque viene en cookie
+        if (result.success && result.usuario) {
+          console.log('✅ [APP] Usuario autenticado, haciendo login...');
+          login(result.usuario);
         } else {
-          console.log('🔐 [APP] No hay usuario autenticado');
-          setLoading(false);
+          console.log('❌ [APP] Usuario NO autenticado');
+          // No hacer nada, dejar isAuthenticated en false
         }
       } catch (error) {
-        console.log('🔐 [APP] Error en verificación:', error);
+        console.error('❌ [APP] Error crítico en verifyInitialAuth:', error);
+      } finally {
         setLoading(false);
+        setAuthChecked(true);
+        console.log('✅ [APP] Verificación inicial completada');
       }
     };
 
-    // Solo verificar si no está autenticado pero podría estarlo (token en cookies)
-    if (!isAuthenticated) {
-      checkAuth();
-    } else {
-      setLoading(false);
+    // Ejecutar solo si no hemos verificado antes
+    if (!authChecked) {
+      verifyInitialAuth();
     }
-  }, [isAuthenticated, login, setLoading]);
+  }, [authChecked, login, setLoading]);
 
-  // ✅ Mostrar loading mientras verifica
-  if (isLoading) {
+  // ✅ Loading inicial (ANTES de verificar autenticación)
+  if (!authChecked || isLoading) {
+    console.log('🔄 [APP] Mostrando loading inicial...');
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-600">Verificando sesión...</p>
       </div>
     );
   }
 
+  console.log('✅ [APP] Renderizando aplicación - isAuthenticated:', isAuthenticated);
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route 
-          path="/login" 
-          element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />} 
-        />
+        {/* ✅ RUTA PÚBLICA PRINCIPAL: Landing Page (siempre accesible) */}
+        <Route path="/" element={<LandingPage />} />
         
-        <Route 
-          path="/register" 
-          element={!isAuthenticated ? <Register /> : <Navigate to="/" replace />} 
-        />
-        
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="plantas" element={<Plantas />} />
-          <Route path="plantas/:id" element={<PlantaDetalle />} />
-          <Route path="incidencias" element={<Incidencias/>} />
-          <Route path="mantenimientos" element={<Mantenimiento/>} />
-          <Route path="reportes" element={<Reportes />} />
-        </Route>
-        
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ✅ RUTAS PÚBLICAS: Login y Register (solo cuando NO está autenticado) */}
+        {!isAuthenticated ? (
+          <>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            {/* Redirigir rutas desconocidas al landing page */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        ) : (
+          /* ✅ RUTAS PROTEGIDAS DEL DASHBOARD (solo cuando ESTÁ autenticado) */
+          <Route path="/dashboard" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="plantas" element={<Plantas />} />
+            <Route path="plantas/:id" element={<PlantaDetalle />} />
+            <Route path="incidencias" element={<Incidencias />} />
+            <Route path="mantenimientos" element={<Mantenimiento />} />
+            <Route path="reportes" element={<Reportes />} />
+            {/* Redirigir rutas desconocidas del dashboard al dashboard principal */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        )}
       </Routes>
     </BrowserRouter>
   );

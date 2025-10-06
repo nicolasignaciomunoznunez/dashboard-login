@@ -1,38 +1,10 @@
-import { useEffect } from 'react';
+// components/ProtectedRoute.jsx - VERSIÓN SIMPLIFICADA (opcional)
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { authService } from '../services/authService';
 
+// Si aún quieres usar ProtectedRoute para algunas rutas específicas
 export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading, login, setLoading } = useAuthStore();
-
-  useEffect(() => {
-    const checkAuthentication = async () => {
-      try {
-        setLoading(true);
-        console.log('🔐 [PROTECTED ROUTE] Verificando autenticación...');
-        const response = await authService.checkAuth();
-        
-        console.log('🔐 [PROTECTED ROUTE] Respuesta:', response);
-        
-        // ✅ CORRECCIÓN: Usar response.usuario en lugar de response.user
-        if (response.success && response.usuario) {
-          console.log('✅ [PROTECTED ROUTE] Usuario autenticado:', response.usuario);
-          console.log('✅ [PROTECTED ROUTE] Rol del usuario:', response.usuario.rol);
-          login(response.usuario); // No necesitamos token porque viene en cookie
-        } else {
-          console.log('🔐 [PROTECTED ROUTE] No hay usuario autenticado');
-        }
-      } catch (error) {
-        console.log('🔐 [PROTECTED ROUTE] Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!isAuthenticated) {
-      checkAuthentication();
-    }
-  }, [isAuthenticated, login, setLoading]);
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (
@@ -42,5 +14,5 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  return isAuthenticated ? children : null;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 }

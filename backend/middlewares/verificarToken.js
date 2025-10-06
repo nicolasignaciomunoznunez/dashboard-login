@@ -1,22 +1,85 @@
 import jwt from "jsonwebtoken";
 import { Usuario } from "../models/usuarioModel.js";
 
+// ✅ NUEVA VERSIÓN: Middleware que NO bloquea cuando no hay token
+export const verificarTokenOpcional = async (req, res, next) => {
+  let token;
+  
+  // Buscar token en headers o cookies
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+    console.log('🔐 [MIDDLEWARE] Token encontrado en Authorization header');
+  } else if (req.cookies.token) {
+    token = req.cookies.token;
+    console.log('🔐 [MIDDLEWARE] Token encontrado en cookies');
+  }
+  
+  // ✅ CAMBIO CRÍTICO: Si no hay token, CONTINUAR sin error
+  if (!token) {
+    console.log('🔐 [MIDDLEWARE] No hay token - continuando sin autenticación');
+    req.usuarioId = null;
+    req.usuario = null;
+    return next();
+  }
+  
+  try {
+    const decodificado = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!decodificado) {
+      console.log('❌ [MIDDLEWARE] Token inválido - continuando sin autenticación');
+      req.usuarioId = null;
+      req.usuario = null;
+      return next();
+    }
+
+    // Verificar que el usuario existe en la base de datos
+    const usuario = await Usuario.buscarPorId(decodificado.usuarioId);
+    
+    if (!usuario) {
+      console.log('❌ [MIDDLEWARE] Usuario no encontrado - continuando sin autenticación');
+      req.usuarioId = null;
+      req.usuario = null;
+      return next();
+    }
+
+    // ✅ Opcional: verificar si el usuario está verificado
+    if (!usuario.estaVerificado) {
+      console.log('⚠️ [MIDDLEWARE] Usuario no verificado - continuando sin autenticación');
+      req.usuarioId = null;
+      req.usuario = null;
+      return next();
+    }
+
+    req.usuarioId = decodificado.usuarioId;
+    req.usuario = usuario;
+    console.log('✅ [MIDDLEWARE] Usuario autenticado:', usuario.email);
+    next();
+  } catch (error) {
+    console.log("❌ [MIDDLEWARE] Error verificando token:", error.message);
+    
+    // ✅ LIMPIAR cookie si el token es inválido
+    res.clearCookie("token");
+    
+    req.usuarioId = null;
+    req.usuario = null;
+    next();
+  }
+};
+
+// ✅ CORREGIR NOMBRE: Cambiar "verificarTokenRequerido" por "verificarToken"
 export const verificarToken = async (req, res, next) => {
   let token;
   
-  // 1. Primero buscar en los headers (Authorization: Bearer <token>)
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
-    console.log('🔐 Token encontrado en Authorization header');
-  }
-  // 2. Si no está en headers, buscar en cookies
-  else if (req.cookies.token) {
+    console.log('🔐 [MIDDLEWARE REQUERIDO] Token encontrado en headers');
+  } else if (req.cookies.token) {
     token = req.cookies.token;
-    console.log('🔐 Token encontrado en cookies');
+    console.log('🔐 [MIDDLEWARE REQUERIDO] Token encontrado en cookies');
   }
   
-  // 3. Si no hay token en ningún lugar, error
   if (!token) {
+    console.log('❌ [MIDDLEWARE REQUERIDO] No hay token - ERROR 401');
     return res.status(401).json({ 
       success: false, 
       message: "No estás autorizado para ver este contenido" 
@@ -25,92 +88,29 @@ export const verificarToken = async (req, res, next) => {
   
   try {
     const decodificado = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (!decodificado) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Token inválido" 
-      });
-    }
-
-    // ✅ VERIFICACIÓN ADICIONAL PARA MySQL: 
-    // Confirmar que el usuario aún existe en la base de datos
     const usuario = await Usuario.buscarPorId(decodificado.usuarioId);
     
     if (!usuario) {
+      console.log('❌ [MIDDLEWARE REQUERIDO] Usuario no encontrado - ERROR 401');
       return res.status(401).json({ 
         success: false, 
-        message: "Usuario no encontrado. Token inválido." 
-      });
-    }
-
-    // ✅ Verificar si el usuario está activo/verificado si lo deseas
-    if (!usuario.isVerified) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Cuenta no verificada. Por favor verifica tu email." 
+        message: "Usuario no encontrado" 
       });
     }
 
     req.usuarioId = decodificado.usuarioId;
-    req.usuario = usuario; // ✅ Opcional: agregar el usuario completo a la request
-    console.log('✅ Token válido para usuario:', decodificado.usuarioId);
+    req.usuario = usuario;
+    console.log('✅ [MIDDLEWARE REQUERIDO] Usuario autenticado:', usuario.email);
     next();
   } catch (error) {
-    console.log("Error en verificarToken:", error);
+    console.log("❌ [MIDDLEWARE REQUERIDO] Error:", error.message);
+    res.clearCookie("token");
     
-    // Mejor manejo de errores específicos
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Token expirado" 
-      });
+      return res.status(401).json({ success: false, message: "Token expirado" });
     }
     
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Token inválido" 
-      });
-    }
-    
-    return res.status(500).json({ 
-      success: false, 
-      message: "Error del servidor" 
-    });
-  }
-};
-
-// Versión alternativa más simple (sin verificación de email)
-export const verificarTokenBasico = async (req, res, next) => {
-  try {
-    const token = req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Acceso denegado. Token no proporcionado."
-      });
-    }
-
-    const decodificado = jwt.verify(token, process.env.JWT_SECRET);
-    req.usuarioId = decodificado.usuarioId;
-    
-    next();
-  } catch (error) {
-    console.log("Error en verificación de token:", error);
-    
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Token expirado. Por favor, inicie sesión nuevamente."
-      });
-    }
-
-    return res.status(401).json({
-      success: false,
-      message: "Token inválido."
-    });
+    return res.status(401).json({ success: false, message: "Token inválido" });
   }
 };
 
@@ -145,10 +145,10 @@ export const verificarRol = (rolesPermitidos = []) => {
   };
 };
 
-// Middleware combinado: token + rol
+// ✅ CORREGIR: Actualizar la referencia aquí también
 export const autenticarYAutorizar = (rolesPermitidos = []) => {
   return [
-    verificarToken,
+    verificarToken, // ✅ Ahora esta función existe
     verificarRol(rolesPermitidos)
   ];
 };
