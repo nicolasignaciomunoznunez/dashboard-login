@@ -45,17 +45,23 @@ export class Planta {
     }
 
 
-// Obtener todas las plantas
+// Obtener todas las plantas - CORREGIDO
+// Obtener todas las plantas - CORREGIDO
 static async obtenerTodas(limite = 10, pagina = 1) {
     try {
-        // Convertir explícitamente a números
+        // Convertir explícitamente a números y validar
         const limiteNum = Number(limite);
         const paginaNum = Number(pagina);
+        
+        if (isNaN(limiteNum) || isNaN(paginaNum) || limiteNum < 1 || paginaNum < 1) {
+            throw new Error('Parámetros de paginación inválidos');
+        }
+        
         const offset = (paginaNum - 1) * limiteNum;
         
         console.log('📊 Ejecutando query con LIMIT:', limiteNum, 'OFFSET:', offset);
         
-        // Usar template literals para LIMIT y OFFSET
+        // ✅ SOLUCIÓN: Usar template literals pero con números validados
         const query = `
             SELECT p.*, u.nombre as clienteNombre 
             FROM plants p 
@@ -64,12 +70,13 @@ static async obtenerTodas(limite = 10, pagina = 1) {
             LIMIT ${limiteNum} OFFSET ${offset}
         `;
         
-       console.log('📊 Ejecutando query con LIMIT:', limiteNum, 'OFFSET:', offset);
-console.log('🔍 Query completa:', query);
-
-const [plantas] = await pool.execute(query);
-console.log('✅ Plantas encontradas en BD:', plantas.length);
-console.log('📝 IDs encontrados:', plantas.map(p => p.id));
+        console.log('🔍 Query completa:', query);
+        
+        // ✅ SOLUCIÓN: Ejecutar sin parámetros (ya están en el query)
+        const [plantas] = await pool.execute(query);
+        
+        console.log('✅ Plantas encontradas en BD:', plantas.length);
+        console.log('📝 IDs encontrados:', plantas.map(p => p.id));
         
         return plantas.map(planta => new Planta(planta));
         
@@ -123,16 +130,20 @@ console.log('📝 IDs encontrados:', plantas.map(p => p.id));
     }
 
     // Eliminar planta
-    static async eliminar(id) {
-        try {
-            const [resultado] = await pool.execute(
-                `DELETE FROM plants WHERE id = ?`,
-                [id]
-            );
+static async eliminar(id) {
+    try {
+        // ✅ CON DELETE CASCADE, SOLO NECESITAS ESTO
+        const [resultado] = await pool.execute(
+            `DELETE FROM plants WHERE id = ?`,
+            [id]
+        );
 
-            return resultado.affectedRows > 0;
-        } catch (error) {
-            throw new Error(`Error al eliminar planta: ${error.message}`);
-        }
+        console.log('✅ Planta eliminada (con eliminación en cascada)');
+        return resultado.affectedRows > 0;
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar planta:', error);
+        throw new Error(`Error al eliminar planta: ${error.message}`);
     }
+}
 }

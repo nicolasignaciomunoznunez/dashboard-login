@@ -5,7 +5,8 @@ import {
     obtenerReportes,
     obtenerReportesPlanta,
     obtenerReportesUsuario,
-    eliminarReporte
+    eliminarReporte,
+    descargarReporte
 } from "../controllers/reporteController.js";
 import { verificarToken, verificarRol } from "../middlewares/verificarToken.js";
 
@@ -22,7 +23,7 @@ router.get("/", obtenerReportes);
 router.get("/:id", obtenerReporte);
 router.get("/planta/:plantId", obtenerReportesPlanta);
 router.get("/usuario/:usuarioId", obtenerReportesUsuario);
-
+router.get("/descargar/:rutaArchivo", descargarReporte);
 // Solo admin puede eliminar
 router.delete("/:id", verificarRol(['admin']), eliminarReporte);
 

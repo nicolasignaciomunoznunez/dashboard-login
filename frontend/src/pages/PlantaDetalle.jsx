@@ -1,39 +1,50 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { usePlantasStore } from '../stores/plantasStore';
 import { useIncidenciasStore } from '../stores/incidenciasStore';
+import { useAuthStore } from '../stores/authStore'; // ✅ AGREGAR ESTE IMPORT
 import { datosPlantaService } from '../services/datosPlantaService';
 import ModalIncidencia from '../components/incidencias/ModalIncidencia';
+import ListaMantenimientos from '../components/mantenimiento/ListaMantenimientos'; // ✅ AGREGAR
 
 export default function PlantaDetalle() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { plantaSeleccionada, obtenerPlanta, loading } = usePlantasStore();
   const { incidencias, obtenerIncidenciasPlanta } = useIncidenciasStore();
+  const { user } = useAuthStore(); // ✅ AGREGAR ESTA LÍNEA
   const [datosPlanta, setDatosPlanta] = useState([]);
   const [loadingDatos, setLoadingDatos] = useState(true);
   const [showModalIncidencia, setShowModalIncidencia] = useState(false);
+  const [errorDatos, setErrorDatos] = useState(null);
+  const [cargado, setCargado] = useState(false);
 
+  // ✅ SOLUCIÓN: Usar un flag para cargar solo una vez
   useEffect(() => {
-    const cargarDatos = async () => {
+    if (!id || cargado) return;
+
+    const cargarTodo = async () => {
       try {
+        console.log('🔄 Cargando datos de planta...');
         await obtenerPlanta(id);
         await obtenerIncidenciasPlanta(id);
         
-        // Cargar datos operativos de la planta
-        const response = await datosPlantaService.obtenerDatosPlanta(id, 50);
-        setDatosPlanta(response.datos || []);
+        try {
+          const response = await datosPlantaService.obtenerDatosPlanta(id, 50);
+          setDatosPlanta(response.datos || []);
+        } catch (error) {
+          console.warn('⚠️ Datos operativos no disponibles');
+          setErrorDatos('Datos operativos temporalmente no disponibles');
+        }
       } catch (error) {
-        console.error('Error cargando datos de planta:', error);
+        console.error('Error general:', error);
       } finally {
         setLoadingDatos(false);
+        setCargado(true);
       }
     };
 
-    if (id) {
-      cargarDatos();
-    }
-  }, [id, obtenerPlanta, obtenerIncidenciasPlanta]);
+    cargarTodo();
+  }, [id, cargado]);
 
   if (loading) {
     return (
@@ -149,7 +160,13 @@ export default function PlantaDetalle() {
         {/* Últimos Datos */}
         <div className="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Historial Reciente</h3>
-          {loadingDatos ? (
+          {errorDatos ? (
+            <div className="text-center py-8 text-yellow-600 bg-yellow-50 rounded-lg">
+              <div className="text-4xl mb-2">⚠️</div>
+              <p>{errorDatos}</p>
+              <p className="text-sm mt-2">El servidor de datos no está respondiendo</p>
+            </div>
+          ) : loadingDatos ? (
             <div className="animate-pulse space-y-3">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-12 bg-gray-200 rounded"></div>
@@ -188,62 +205,66 @@ export default function PlantaDetalle() {
         </div>
       </div>
 
-      
-      
-     
-     <div className="bg-white rounded-lg shadow-md p-6">
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="text-lg font-semibold text-gray-900">Incidencias Recientes</h3>
-      <button 
-        onClick={() => setShowModalIncidencia(true)}
-        className="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1 rounded text-sm font-medium"
-      >
-        + Reportar
-      </button>
-    </div>
-    {incidencias.length > 0 ? (
-      <div className="space-y-3">
-        {incidencias.slice(0, 5).map((incidencia) => (
-          <div key={incidencia.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className={`w-3 h-3 rounded-full ${
-                incidencia.estado === 'pendiente' ? 'bg-yellow-500' : 
-                incidencia.estado === 'en_progreso' ? 'bg-blue-500' : 'bg-green-500'
-              }`}></div>
-              <div>
-                <p className="font-medium text-gray-900">{incidencia.titulo}</p>
-                <p className="text-sm text-gray-500">
-                  {new Date(incidencia.fechaReporte).toLocaleDateString()} • 
-                  Estado: {incidencia.estado}
-                </p>
+      {/* Sección de Mantenimientos */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <ListaMantenimientos 
+          plantaId={plantaSeleccionada?.id} 
+          soloLectura={user?.rol === 'cliente'} // ✅ AHORA user está definido
+        />
+      </div>
+
+      {/* Sección de Incidencias */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Incidencias Recientes</h3>
+          <button 
+            onClick={() => setShowModalIncidencia(true)}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1 rounded text-sm font-medium"
+          >
+            + Reportar
+          </button>
+        </div>
+        {incidencias.length > 0 ? (
+          <div className="space-y-3">
+            {incidencias.slice(0, 5).map((incidencia) => (
+              <div key={incidencia.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    incidencia.estado === 'pendiente' ? 'bg-yellow-500' : 
+                    incidencia.estado === 'en_progreso' ? 'bg-blue-500' : 'bg-green-500'
+                  }`}></div>
+                  <div>
+                    <p className="font-medium text-gray-900">{incidencia.titulo}</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(incidencia.fechaReporte).toLocaleDateString()} • 
+                      Estado: {incidencia.estado}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/incidencias"
+                  className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                >
+                  Ver detalles
+                </Link>
               </div>
-            </div>
-            <Link
-              to="/incidencias"
-              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-            >
-              Ver detalles
-            </Link>
+            ))}
           </div>
-        ))}
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">⚠️</div>
+            <p>No hay incidencias reportadas</p>
+          </div>
+        )}
       </div>
-    ) : (
-      <div className="text-center py-8 text-gray-500">
-        <div className="text-4xl mb-2">⚠️</div>
-        <p>No hay incidencias reportadas</p>
-      </div>
-    )}
-  </div>
 
-   
-
-         {/* Agrega el modal al final */}
-  <ModalIncidencia
-    isOpen={showModalIncidencia}
-    onClose={() => setShowModalIncidencia(false)}
-    incidencia={null}
-    plantaPreSeleccionada={plantaSeleccionada?.id}
-  />
+      {/* Modal de Incidencias */}
+      <ModalIncidencia
+        isOpen={showModalIncidencia}
+        onClose={() => setShowModalIncidencia(false)}
+        incidencia={null}
+        plantaPreSeleccionada={plantaSeleccionada?.id}
+      />
     </div>
   );
 }

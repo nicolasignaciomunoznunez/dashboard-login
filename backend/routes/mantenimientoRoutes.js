@@ -1,7 +1,9 @@
+// backend/routes/mantenimientoRouter.js
 import express from "express";
 import {
     crearMantenimiento,
     obtenerMantenimiento,
+    obtenerMantenimientos, // ✅ AGREGAR ESTA FUNCIÓN
     obtenerMantenimientosPlanta,
     obtenerMantenimientosTecnico,
     actualizarMantenimiento,
@@ -16,6 +18,9 @@ const router = express.Router();
 
 // Todas las rutas requieren autenticación
 router.use(verificarToken);
+
+// ✅ AGREGAR ESTA RUTA - Obtener todos los mantenimientos
+router.get("/", obtenerMantenimientos);
 
 // Solo admin y técnicos pueden crear mantenimientos
 router.post("/", verificarRol(['admin', 'tecnico']), crearMantenimiento);

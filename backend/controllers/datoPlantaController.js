@@ -40,7 +40,21 @@ export const obtenerDatosPlanta = async (req, res) => {
         const { plantId } = req.params;
         const { limite = 100, pagina = 1 } = req.query;
 
-        const datos = await DatoPlanta.obtenerPorPlanta(plantId, parseInt(limite), parseInt(pagina));
+        console.log('🔍 Parámetros recibidos en controlador:', {
+            plantId,
+            plantIdType: typeof plantId,
+            limite,
+            limiteType: typeof limite,
+            pagina,
+            paginaType: typeof pagina
+        });
+
+        // CONVERTIR plantId también a número
+        const datos = await DatoPlanta.obtenerPorPlanta(
+            parseInt(plantId),  // ← Agregar parseInt aquí
+            parseInt(limite), 
+            parseInt(pagina)
+        );
 
         res.status(200).json({
             success: true,

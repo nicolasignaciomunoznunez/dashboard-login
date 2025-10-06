@@ -3,24 +3,27 @@ import { useIncidenciasStore } from '../../stores/incidenciasStore';
 import { usePlantasStore } from '../../stores/plantasStore';
 import { useAuthStore } from '../../stores/authStore';
 
-export default function ModalIncidencia({ isOpen, onClose, incidencia }) {
- const { crearIncidencia, cambiarEstadoIncidencia, loading } = useIncidenciasStore();
-  const { plantas, obtenerPlantas } = usePlantasStore();
+export default function ModalIncidencia({ isOpen, onClose, incidencia, plantaPreSeleccionada }) {
+  const { crearIncidencia, cambiarEstadoIncidencia, loading } = useIncidenciasStore();
+  const { plantas, obtenerPlantas } = usePlantasStore(); // ✅ Removí resetearPlantasCargadas
   const { user } = useAuthStore();
   
   const [formData, setFormData] = useState({
-    plantId: '',
+    plantId: plantaPreSeleccionada || '',
     titulo: '',
     descripcion: '',
     estado: 'pendiente'
   });
 
+  // ✅ SOLUCIÓN: Solo obtener plantas cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
+      console.log('🎯 MODAL INCIDENCIA: Abierto - Obteniendo plantas');
       obtenerPlantas(50);
     }
-  }, [isOpen, obtenerPlantas]);
+  }, [isOpen]); // ✅ Solo isOpen como dependencia
 
+  // ✅ SOLUCIÓN: Resetear formulario cuando cambian las props
   useEffect(() => {
     if (incidencia) {
       setFormData({
@@ -31,42 +34,45 @@ export default function ModalIncidencia({ isOpen, onClose, incidencia }) {
       });
     } else {
       setFormData({
-        plantId: '',
+        plantId: plantaPreSeleccionada || '',
         titulo: '',
         descripcion: '',
         estado: 'pendiente'
       });
     }
-  }, [incidencia]);
-
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  if (!formData.plantId || !formData.titulo || !formData.descripcion) {
-    alert('Todos los campos son requeridos');
-    return;
-  }
-
-  try {
-    if (incidencia) {
-      // Solo permite cambiar el estado si es edición
-      await cambiarEstadoIncidencia(incidencia.id, formData.estado);
-    } else {
-      await crearIncidencia(formData);
-    }
-    onClose();
-  } catch (error) {
-    console.error('Error al guardar incidencia:', error);
-  }
-};
+  }, [incidencia, plantaPreSeleccionada]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (incidencia) {
+        // Editar incidencia existente
+        await cambiarEstadoIncidencia(incidencia.id, formData.estado);
+      } else {
+        // Crear nueva incidencia
+        await crearIncidencia(formData);
+      }
+      
+      onClose(); // Cerrar modal después de guardar
+    } catch (error) {
+      console.error('Error al guardar incidencia:', error);
+    }
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  // ✅ Si el modal no está abierto, no renderizar nada
   if (!isOpen) return null;
 
   return (
@@ -77,7 +83,7 @@ export default function ModalIncidencia({ isOpen, onClose, incidencia }) {
             {incidencia ? 'Editar Incidencia' : 'Reportar Nueva Incidencia'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             ✕
@@ -160,7 +166,7 @@ export default function ModalIncidencia({ isOpen, onClose, incidencia }) {
           <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
             >
               Cancelar

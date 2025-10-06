@@ -4,7 +4,14 @@ import ModalIncidencia from '../components/incidencias/ModalIncidencia';
 import ListaIncidencias from '../components/incidencias/ListaIncidencias';
 
 export default function Incidencias() {
-  const { incidencias, loading, error, obtenerIncidencias } = useIncidenciasStore();
+  const { 
+    incidencias, 
+    loading, 
+    error, 
+    obtenerIncidencias, 
+    cambiarEstadoIncidencia  // ✅ AGREGAR ESTA FUNCIÓN
+  } = useIncidenciasStore();
+  
   const [showModal, setShowModal] = useState(false);
   const [incidenciaEditando, setIncidenciaEditando] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('todos');
@@ -26,6 +33,18 @@ export default function Incidencias() {
   const handleCerrarModal = () => {
     setShowModal(false);
     setIncidenciaEditando(null);
+  };
+
+  // ✅ FUNCIÓN PARA CAMBIAR ESTADO
+  const handleCambiarEstado = async (id, nuevoEstado) => {
+    try {
+      await cambiarEstadoIncidencia(id, nuevoEstado);
+      // Opcional: mostrar mensaje de éxito
+      console.log(`✅ Estado cambiado a: ${nuevoEstado}`);
+    } catch (error) {
+      console.error('❌ Error al cambiar estado:', error);
+      // Opcional: mostrar mensaje de error
+    }
   };
 
   // Filtrar incidencias por estado
@@ -89,9 +108,11 @@ export default function Incidencias() {
         </div>
       </div>
 
+      {/* ✅ PASAR LA FUNCIÓN handleCambiarEstado */}
       <ListaIncidencias 
         incidencias={incidenciasFiltradas}
         onEditarIncidencia={handleEditarIncidencia}
+        onCambiarEstado={handleCambiarEstado}  // ✅ NUEVA PROP
         loading={loading}
       />
 

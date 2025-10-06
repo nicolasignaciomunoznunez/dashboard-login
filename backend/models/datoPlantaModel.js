@@ -60,25 +60,49 @@ export class DatoPlanta {
     }
 
     // Obtener datos por planta
-    static async obtenerPorPlanta(plantId, limite = 100, pagina = 1) {
-        try {
-            const offset = (pagina - 1) * limite;
-            
-            const [datos] = await pool.execute(
-                `SELECT pd.*, p.nombre as plantaNombre 
-                 FROM plant_data pd 
-                 LEFT JOIN plants p ON pd.plantId = p.id 
-                 WHERE pd.plantId = ? 
-                 ORDER BY pd.timestamp DESC 
-                 LIMIT ? OFFSET ?`,
-                [plantId, limite, offset]
-            );
-
-            return datos.map(dato => new DatoPlanta(dato));
-        } catch (error) {
-            throw new Error(`Error al obtener datos de planta: ${error.message}`);
+static async obtenerPorPlanta(plantId, limite = 100, pagina = 1) {
+    try {
+        // Asegurar que todos sean números
+        const plantIdNum = Number(plantId);
+        const limiteNum = Number(limite);
+        const paginaNum = Number(pagina);
+        
+        // Validar que sean números válidos
+        if (isNaN(plantIdNum) || isNaN(limiteNum) || isNaN(paginaNum)) {
+            throw new Error('Parámetros inválidos: deben ser números');
         }
+        
+        const offset = (paginaNum - 1) * limiteNum;
+        
+        console.log('🔍 Parámetros finales para MySQL:', { 
+            plantIdNum, 
+            limiteNum, 
+            offset 
+        });
+        
+        // ✅ SOLUCIÓN: Usar template literals con números validados
+        const query = `
+            SELECT pd.*, p.nombre as plantaNombre 
+            FROM plant_data pd 
+            LEFT JOIN plants p ON pd.plantId = p.id 
+            WHERE pd.plantId = ? 
+            ORDER BY pd.timestamp DESC 
+            LIMIT ${limiteNum} OFFSET ${offset}
+        `;
+        
+        console.log('🔍 Query completa:', query);
+        
+        // ✅ SOLUCIÓN: Solo pasar plantId como parámetro
+        const [datos] = await pool.execute(query, [plantIdNum]);
+        
+        console.log('✅ Datos encontrados:', datos.length);
+
+        return datos.map(dato => new DatoPlanta(dato));
+    } catch (error) {
+        console.error('❌ Error en obtenerPorPlanta:', error);
+        throw new Error(`Error al obtener datos de planta: ${error.message}`);
     }
+}
 
     // Obtener datos por rango de fechas
     static async obtenerPorRangoFechas(plantId, fechaInicio, fechaFin) {

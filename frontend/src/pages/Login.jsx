@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // ← Agrega Link aquí
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authService } from '../services/authService';
 
@@ -20,11 +20,20 @@ export default function Login() {
     try {
       const response = await authService.login(email, password);
       
-      if (response.success) {
-        login(response.user, response.token);
+      console.log('🔐 [LOGIN] Respuesta completa:', response); // DEBUG
+      
+      // ✅ CORRECCIÓN: Usar response.usuario en lugar de response.user
+      if (response.success && response.usuario) {
+        console.log('✅ [LOGIN] Usuario recibido:', response.usuario);
+        console.log('✅ [LOGIN] Rol del usuario:', response.usuario.rol); // DEBUG del rol
+        
+        login(response.usuario, response.token);
         navigate('/');
+      } else {
+        setError(response.message || 'Error al iniciar sesión');
       }
     } catch (error) {
+      console.error('❌ [LOGIN] Error:', error);
       setError(error.response?.data?.message || 'Error al iniciar sesión');
     } finally {
       setIsLoading(false);

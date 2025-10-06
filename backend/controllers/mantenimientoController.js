@@ -217,3 +217,31 @@ export const eliminarMantenimiento = async (req, res) => {
         });
     }
 };
+
+export const obtenerMantenimientos = async (req, res) => {
+    try {
+        const { limite = 50, pagina = 1 } = req.query;
+        
+        const offset = (pagina - 1) * limite;
+        
+        // Obtener todos los mantenimientos con paginación
+        const mantenimientos = await Mantenimiento.obtenerTodos({
+            limite: parseInt(limite),
+            offset: parseInt(offset)
+        });
+
+        res.status(200).json({
+            success: true,
+            mantenimientos: mantenimientos.rows || mantenimientos,
+            total: mantenimientos.count || mantenimientos.length,
+            pagina: parseInt(pagina),
+            totalPaginas: Math.ceil((mantenimientos.count || mantenimientos.length) / limite)
+        });
+    } catch (error) {
+        console.log("Error al obtener mantenimientos:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

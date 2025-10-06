@@ -12,6 +12,8 @@ export class Incidencia {
         this.fechaResolucion = incidencia.fechaResolucion;
         this.usuario = incidencia.usuario; // Para joins
         this.planta = incidencia.planta; // Para joins
+        this.plantaNombre = incidencia.plantaNombre; // Nombre directo de la planta
+        this.usuarioNombre = incidencia.usuarioNombre; // Nombre directo del usuario
     }
 
     // Crear nueva incidencia
@@ -57,26 +59,39 @@ export class Incidencia {
         }
     }
 
-    // Obtener todas las incidencias
-    static async obtenerTodas(limite = 10, pagina = 1) {
-        try {
-            const offset = (pagina - 1) * limite;
-            
-            const [incidencias] = await pool.execute(
-                `SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
-                 FROM incidencias i 
-                 LEFT JOIN users u ON i.userId = u.id 
-                 LEFT JOIN plants p ON i.plantId = p.id 
-                 ORDER BY i.fechaReporte DESC 
-                 LIMIT ? OFFSET ?`,
-                [limite, offset]
-            );
-
-            return incidencias.map(incidencia => new Incidencia(incidencia));
-        } catch (error) {
-            throw new Error(`Error al obtener incidencias: ${error.message}`);
+// Obtener todas las incidencias - CORREGIDO
+static async obtenerTodas(limite = 10, pagina = 1) {
+    try {
+        // Convertir y validar números
+        const limiteNum = Number(limite);
+        const paginaNum = Number(pagina);
+        
+        if (isNaN(limiteNum) || isNaN(paginaNum) || limiteNum < 1 || paginaNum < 1) {
+            throw new Error('Parámetros de paginación inválidos');
         }
+        
+        const offset = (paginaNum - 1) * limiteNum;
+        
+        // ✅ SOLUCIÓN: Usar template literals con números validados
+        const query = `
+            SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
+            FROM incidencias i 
+            LEFT JOIN users u ON i.userId = u.id 
+            LEFT JOIN plants p ON i.plantId = p.id 
+            ORDER BY i.fechaReporte DESC 
+            LIMIT ${limiteNum} OFFSET ${offset}
+        `;
+        
+        console.log('🔍 Query incidencias:', query);
+        
+        const [incidencias] = await pool.execute(query);
+        
+        return incidencias.map(incidencia => new Incidencia(incidencia));
+    } catch (error) {
+        console.error('❌ Error en obtenerTodas incidencias:', error);
+        throw new Error(`Error al obtener incidencias: ${error.message}`);
     }
+}
 
     // Obtener incidencias por planta
     static async obtenerPorPlanta(plantId) {

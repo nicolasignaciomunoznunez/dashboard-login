@@ -9,13 +9,21 @@ export default function ProtectedRoute({ children }) {
     const checkAuthentication = async () => {
       try {
         setLoading(true);
+        console.log('🔐 [PROTECTED ROUTE] Verificando autenticación...');
         const response = await authService.checkAuth();
         
-        if (response.success) {
-          login(response.user, response.token);
+        console.log('🔐 [PROTECTED ROUTE] Respuesta:', response);
+        
+        // ✅ CORRECCIÓN: Usar response.usuario en lugar de response.user
+        if (response.success && response.usuario) {
+          console.log('✅ [PROTECTED ROUTE] Usuario autenticado:', response.usuario);
+          console.log('✅ [PROTECTED ROUTE] Rol del usuario:', response.usuario.rol);
+          login(response.usuario); // No necesitamos token porque viene en cookie
+        } else {
+          console.log('🔐 [PROTECTED ROUTE] No hay usuario autenticado');
         }
       } catch (error) {
-        console.log('Usuario no autenticado');
+        console.log('🔐 [PROTECTED ROUTE] Error:', error);
       } finally {
         setLoading(false);
       }

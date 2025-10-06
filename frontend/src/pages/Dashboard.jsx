@@ -1,47 +1,58 @@
 import { useEffect, useState } from 'react';
 import { useDashboardStore } from '../stores/dashboardStore';
 import { usePlantasStore } from '../stores/plantasStore';
-import TarjetasMetricas from '../components/dashboard/TarjetasMetricas';
+import { useIncidenciasStore } from '../stores/incidenciasStore';
+import { useMantenimientoStore } from '../stores/mantenimientoStore';
+import TarjetasMetricasAvanzadas from '../components/dashboard/TarjetasMetricasAvanzadas';
 import ListaPlantasDashboard from '../components/dashboard/ListaPlantasDashboard';
+import GraficosDashboard from '../components/dashboard/GraficosDashboard';
+import AlertasDashboard from '../components/dashboard/AlertasDashboard';
+import ResumenActividad from '../components/dashboard/ResumenActividad';
 
 export default function Dashboard() {
-  const { metricas, loading: dashboardLoading, error, obtenerMetricas } = useDashboardStore();
+  const { 
+    metricas, 
+    loading: dashboardLoading, 
+    error, 
+    obtenerMetricas 
+  } = useDashboardStore();
+  
   const { plantas, loading: plantasLoading, obtenerPlantas } = usePlantasStore();
-  const [datosLocales] = useState([
-    { plantaNombre: 'Planta Principal', nivelLocal: 85, turbidez: 2.1, cloro: 1.8, presion: 45.2 },
-    { plantaNombre: 'Planta Norte', nivelLocal: 42, turbidez: 3.5, cloro: 2.1, presion: 38.7 },
-    { plantaNombre: 'Planta Tratamiento Norte', nivelLocal: 68, turbidez: 1.8, cloro: 1.5, presion: 52.1 }
-  ]);
+  const { incidencias, obtenerIncidencias } = useIncidenciasStore();
+  const { mantenimientos, obtenerMantenimientos } = useMantenimientoStore();
+  
+  const [periodo, setPeriodo] = useState('hoy');
+  const [vista, setVista] = useState('resumen');
 
   useEffect(() => {
     const cargarDatos = async () => {
-      try {
-        await Promise.all([
-          obtenerMetricas(),
-          obtenerPlantas()
-        ]);
-      } catch (error) {
-        console.error('Error cargando datos:', error);
-      }
+      await Promise.all([
+        obtenerMetricas(),
+        obtenerPlantas(10),
+        obtenerIncidencias(10),
+        obtenerMantenimientos(10)
+      ]);
     };
-    console.log('🔍 DEBUG DASHBOARD:');
-console.log('- Plantas en estado:', plantas.length);
-console.log('- Plantas array:', plantas);
-console.log('- IDs de plantas:', plantas.map(p => p.id));
-
-// Y en el return, agrega una sección de debug temporal:
-<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-  <h3 className="font-medium text-blue-800">Debug Info:</h3>
-  <p className="text-sm text-blue-700">
-    Plantas cargadas: {plantas.length}<br/>
-    IDs: [{plantas.map(p => p.id).join(', ')}]
-  </p>
-</div>
-
     cargarDatos();
-  }, [obtenerMetricas, obtenerPlantas]);
+  }, [obtenerMetricas, obtenerPlantas, obtenerIncidencias, obtenerMantenimientos]);
 
   const loading = dashboardLoading || plantasLoading;
+
+  // Preparar datos para gráficos basados en datos reales
+  const datosGraficos = {
+    plantas: plantas.slice(0, 5).map(planta => ({
+      id: planta.id,
+      nombre: planta.nombre,
+      nivel: Math.random() * 100, // Temporal - puedes reemplazar con datos reales luego
+      estado: Math.random() > 0.3 ? 'optimal' : 'warning'
+    })),
+    incidencias: {
+      pendientes: incidencias.filter(i => i.estado === 'pendiente').length,
+      enProgreso: incidencias.filter(i => i.estado === 'en_progreso').length,
+      resueltas: incidencias.filter(i => i.estado === 'resuelto').length
+    },
+    metricasReales: metricas?.metricas // Usar métricas reales del backend
+  };
 
   if (loading && (!metricas && plantas.length === 0)) {
     return (
@@ -53,6 +64,7 @@ console.log('- IDs de plantas:', plantas.map(p => p.id));
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
           </div>
+          <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
@@ -60,11 +72,58 @@ console.log('- IDs de plantas:', plantas.map(p => p.id));
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      {/* Header con controles */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Resumen del sistema</p>
+          <h1 className="text-2xl font-bold text-gray-900">Panel de Control</h1>
+          <p className="text-gray-600">
+            {metricas?.metricas ? `Sistema operando al ${metricas.metricas.eficienciaPromedio}% de eficiencia` : 'Cargando métricas...'}
+          </p>
+        </div>
+        
+        <div className="flex flex-wrap gap-3">
+          <select
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="hoy">Hoy</option>
+            <option value="semana">Esta semana</option>
+            <option value="mes">Este mes</option>
+          </select>
+          
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setVista('resumen')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                vista === 'resumen' 
+                  ? 'bg-white text-primary-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Resumen
+            </button>
+            <button
+              onClick={() => setVista('plantas')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                vista === 'plantas' 
+                  ? 'bg-white text-primary-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Plantas
+            </button>
+            <button
+              onClick={() => setVista('alertas')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                vista === 'alertas' 
+                  ? 'bg-white text-primary-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Alertas
+            </button>
+          </div>
         </div>
       </div>
 
@@ -74,15 +133,71 @@ console.log('- IDs de plantas:', plantas.map(p => p.id));
         </div>
       )}
 
-      {/* Tarjetas de Métricas */}
-      <TarjetasMetricas 
-        metricas={metricas} 
+      {/* Tarjetas de Métricas Avanzadas con datos reales */}
+      <TarjetasMetricasAvanzadas 
+        metricas={metricas?.metricas}
         plantas={plantas}
-        datosLocales={datosLocales}
+        incidencias={incidencias}
+        mantenimientos={mantenimientos}
       />
 
-      {/* Lista de Plantas */}
-      <ListaPlantasDashboard plantas={plantas} />
+      {/* Grid Principal */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Columna izquierda - Gráficos y Métricas */}
+        <div className="xl:col-span-2 space-y-6">
+          <GraficosDashboard 
+            datos={datosGraficos}
+            plantas={plantas}
+            incidencias={incidencias}
+            metricasReales={metricas?.metricas}
+          />
+          
+          {/* Resumen de Actividad */}
+          <ResumenActividad 
+            incidencias={incidencias}
+            mantenimientos={mantenimientos}
+          />
+        </div>
+
+        {/* Columna derecha - Alertas y Plantas */}
+        <div className="space-y-6">
+          <AlertasDashboard 
+            plantas={plantas}
+            incidencias={incidencias}
+            mantenimientos={mantenimientos}
+          />
+          
+          <ListaPlantasDashboard plantas={plantas} />
+        </div>
+      </div>
+
+      {/* Estado del Sistema con datos reales */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-blue-900">Estado del Sistema</h3>
+            <p className="text-blue-700">
+              {metricas?.metricas 
+                ? `${metricas.metricas.plantasActivas}/${metricas.metricas.totalPlantas} plantas activas` 
+                : 'Cargando estado del sistema...'
+              }
+            </p>
+            {metricas?.metricas && (
+              <p className="text-sm text-blue-600 mt-1">
+                Eficiencia: {metricas.metricas.eficienciaPromedio}% • 
+                Incidencias activas: {metricas.metricas.incidenciasActivas}
+              </p>
+            )}
+          </div>
+          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+            metricas?.metricas && metricas.metricas.plantasActivas > 0
+              ? 'bg-green-100 text-green-800 border border-green-200' 
+              : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+          }`}>
+            {metricas?.metricas && metricas.metricas.plantasActivas > 0 ? '✅ Operativo' : '⚠️ En configuración'}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

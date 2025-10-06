@@ -1,12 +1,14 @@
 import { api } from './api';
 
 export const authService = {
-  // Login
+  // Login con debug
   login: async (email, password) => {
+    console.log('🔐 [AUTH SERVICE] Enviando login...', { email });
     const response = await api.post('/auth/iniciar-sesion', {
       email,
       password,
     });
+    console.log('🔐 [AUTH SERVICE] Respuesta login:', response.data);
     return response.data;
   },
 
@@ -19,6 +21,7 @@ export const authService = {
   // Verificar autenticación
   checkAuth: async () => {
     const response = await api.get('/auth/verificar-autenticacion');
+    console.log('🔐 [AUTH SERVICE] Verificar autenticación:', response.data);
     return response.data;
   },
 
@@ -49,14 +52,10 @@ export const authService = {
   },
 
   // Verificar email
-verifyEmail: async (code) => {
-  const response = await api.post('/auth/verificar-email', {
-    code, // El código de 6 dígitos
-  });
-  return response.data;
-},
-
-
-
+  verifyEmail: async (code) => {
+    const response = await api.post('/auth/verificar-email', {
+      code,
+    });
+    return response.data;
+  },
 };
-

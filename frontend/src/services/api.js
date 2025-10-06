@@ -5,22 +5,16 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 // Crear instancia de axios
 export const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // para cookies
+  withCredentials: true,
 });
 
-// Interceptor para agregar token a las requests
+// Interceptor para agregar token a las requests - CORREGIDO
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth-storage');
+    // ✅ SOLUCIÓN: Obtener el token correctamente
+    const token = obtenerToken();
     if (token) {
-      try {
-        const authState = JSON.parse(token);
-        if (authState.state?.token) {
-          config.headers.Authorization = `Bearer ${authState.state.token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing auth token:', error);
-      }
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -28,6 +22,31 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+// ✅ NUEVA FUNCIÓN: Obtener token del localStorage correctamente
+const obtenerToken = () => {
+  try {
+    const authStorage = localStorage.getItem('auth-storage');
+    if (!authStorage) return null;
+
+    const authState = JSON.parse(authStorage);
+    
+    // Dependiendo de cómo esté estructurado tu auth store
+    if (authState.state?.token) {
+      return authState.state.token;
+    }
+    
+    // O si está en la raíz del state
+    if (authState.token) {
+      return authState.token;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error obteniendo token:', error);
+    return null;
+  }
+};
 
 // Interceptor para manejar respuestas
 api.interceptors.response.use(

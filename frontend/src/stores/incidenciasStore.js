@@ -38,14 +38,17 @@ export const useIncidenciasStore = create((set, get) => ({
     }
   },
 
-  // Crear incidencia
+  // Crear incidencia - CORREGIDO
   crearIncidencia: async (incidenciaData) => {
     set({ loading: true, error: null });
     try {
       const response = await incidenciasService.crearIncidencia(incidenciaData);
-      // Actualizar lista
-      await get().obtenerIncidencias();
-      set({ loading: false });
+      // ✅ SOLUCIÓN: Actualizar localmente SIN nueva llamada API
+      const nuevaIncidencia = response.incidencia;
+      set(state => ({ 
+        incidencias: [nuevaIncidencia, ...state.incidencias],
+        loading: false 
+      }));
       return response;
     } catch (error) {
       set({ error: error.response?.data?.message || 'Error al crear incidencia', loading: false });
@@ -53,14 +56,18 @@ export const useIncidenciasStore = create((set, get) => ({
     }
   },
 
-  // Cambiar estado de incidencia
+  // Cambiar estado de incidencia - CORREGIDO
   cambiarEstadoIncidencia: async (id, estado) => {
     set({ loading: true, error: null });
     try {
       const response = await incidenciasService.cambiarEstadoIncidencia(id, estado);
-      // Actualizar lista
-      await get().obtenerIncidencias();
-      set({ loading: false });
+      // ✅ SOLUCIÓN: Actualizar localmente SIN nueva llamada API
+      set(state => ({
+        incidencias: state.incidencias.map(inc => 
+          inc.id === id ? { ...inc, estado } : inc
+        ),
+        loading: false
+      }));
       return response;
     } catch (error) {
       set({ error: error.response?.data?.message || 'Error al cambiar estado', loading: false });

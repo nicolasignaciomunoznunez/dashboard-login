@@ -1,4 +1,5 @@
 import { Planta } from "../models/plantaModel.js";
+import { pool } from "../db/connectDB.js";
 
 export const crearPlanta = async (req, res) => {
     try {
@@ -124,6 +125,9 @@ export const actualizarPlanta = async (req, res) => {
 export const eliminarPlanta = async (req, res) => {
     try {
         const { id } = req.params;
+
+        console.log('🗑️ Intentando eliminar planta ID:', id);
+
         const eliminado = await Planta.eliminar(id);
 
         if (!eliminado) {
@@ -133,9 +137,10 @@ export const eliminarPlanta = async (req, res) => {
             });
         }
 
+        console.log('✅ Planta eliminada exitosamente');
         res.status(200).json({
             success: true,
-            message: "Planta eliminada correctamente"
+            message: "Planta y todos sus registros relacionados eliminados correctamente"
         });
     } catch (error) {
         console.log("Error al eliminar planta:", error);

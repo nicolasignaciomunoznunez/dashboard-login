@@ -160,10 +160,81 @@ export class Mantenimiento {
         }
     }
 
+
+// En models/mantenimientoModel.js - SIN PARÁMETROS
+static async obtenerTodos({ limite = 50, offset = 0 } = {}) {
+    try {
+        console.log('🔍 [MODEL] Versión SIN parámetros');
+        
+        // Usar valores directos sin parámetros preparados
+        const limitNum = parseInt(limite) || 50;
+        const offsetNum = parseInt(offset) || 0;
+
+        console.log('🔢 Parámetros directos:', { limitNum, offsetNum });
+
+        // ✅ CONSULTA SIN PARÁMETROS PREPARADOS
+        const query = `
+            SELECT 
+                m.*, 
+                COALESCE(u.nombre, CONCAT('Usuario ', m.userId)) as tecnicoNombre,
+                COALESCE(p.nombre, CONCAT('Planta ', m.plantId)) as plantaNombre
+            FROM mantenimientos m 
+            LEFT JOIN users u ON m.userId = u.id 
+            LEFT JOIN plants p ON m.plantId = p.id 
+            ORDER BY m.fechaProgramada DESC 
+            LIMIT ${limitNum} OFFSET ${offsetNum}
+        `;
+
+        console.log('📝 Ejecutando query directa...');
+        const [mantenimientos] = await pool.execute(query);
+        console.log('✅ Mantenimientos encontrados:', mantenimientos.length);
+
+        // Obtener el total
+        const [totalResult] = await pool.execute(`SELECT COUNT(*) as total FROM mantenimientos`);
+        const total = totalResult[0]?.total || 0;
+
+        return {
+            rows: mantenimientos.map(mantenimiento => new Mantenimiento(mantenimiento)),
+            count: total
+        };
+    } catch (error) {
+        console.error('❌ [MODEL] Error en versión sin parámetros:', error);
+        
+        // ✅ VERSIÓN MÍNIMA ABSOLUTA
+        try {
+            console.log('🔄 Intentando consulta mínima...');
+            const [mantenimientos] = await pool.execute(
+                `SELECT * FROM mantenimientos ORDER BY fechaProgramada DESC LIMIT 10`
+            );
+            
+            console.log('✅ Mantenimientos mínimos:', mantenimientos.length);
+            
+            const mantenimientosConNombres = mantenimientos.map(m => ({
+                ...m,
+                tecnicoNombre: `Usuario ${m.userId}`,
+                plantaNombre: `Planta ${m.plantId}`
+            }));
+
+            return {
+                rows: mantenimientosConNombres.map(m => new Mantenimiento(m)),
+                count: mantenimientos.length
+            };
+        } catch (minError) {
+            console.error('❌ Error en consulta mínima:', minError);
+            
+            // ✅ ÚLTIMO RESORTE: Array vacío
+            return {
+                rows: [],
+                count: 0
+            };
+        }
+    }
+}
+
     // Actualizar mantenimiento
     static async actualizar(id, datosActualizados) {
         try {
-            const camposPermitidos = ['descripcion', 'fechaProgramada', 'fechaRealizada', 'estado', 'userId'];
+            const camposPermitidos = ['descripcion','tipo' ,'fechaProgramada', 'fechaRealizada', 'estado', 'userId'];
             const camposParaActualizar = [];
             const valores = [];
 

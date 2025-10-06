@@ -12,6 +12,12 @@ export const useAuthStore = create(
 
       // Actions
       login: (userData, authToken) => {
+        console.log('🔐 [AUTH STORE] Login:', { 
+          userData, 
+          tieneRol: !!userData?.rol,
+          rol: userData?.rol 
+        });
+        
         set({ 
           user: userData, 
           token: authToken, 
@@ -32,11 +38,19 @@ export const useAuthStore = create(
       setLoading: (loading) => set({ isLoading: loading }),
 
       updateUser: (userData) => {
+        console.log('🔐 [AUTH STORE] Actualizando usuario:', userData);
         set({ user: { ...get().user, ...userData } });
       },
+
+      // ✅ NUEVO: Verificar permisos
+      tieneRol: (roles) => {
+        const { user } = get();
+        if (!user || !user.rol) return false;
+        return Array.isArray(roles) ? roles.includes(user.rol) : user.rol === roles;
+      }
     }),
     {
-      name: 'auth-storage', // nombre para localStorage
+      name: 'auth-storage',
     }
   )
 );
