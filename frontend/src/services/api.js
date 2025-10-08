@@ -8,14 +8,42 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+// ✅ FUNCIÓN CORREGIDA: Obtener token de la estructura de Zustand
+const obtenerToken = () => {
+  try {
+    const authStorage = localStorage.getItem('auth-storage');
+    
+    if (!authStorage) {
+      console.log('🔐 [obtenerToken] No hay auth-storage en localStorage');
+      return null;
+    }
+
+    const authState = JSON.parse(authStorage);
+    console.log('🔐 [obtenerToken] Estructura completa:', authState);
+    
+    // ✅ CORRECCIÓN: Zustand guarda el estado en authState.state
+    const token = authState?.state?.token;
+    console.log('🔐 [obtenerToken] Token encontrado:', token);
+    
+    return token || null;
+  } catch (error) {
+    console.error('❌ [obtenerToken] Error:', error);
+    return null;
+  }
+};
+
 // Interceptor para agregar token a las requests - CORREGIDO
 api.interceptors.request.use(
   (config) => {
-    // ✅ SOLUCIÓN: Obtener el token correctamente
     const token = obtenerToken();
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔐 [API Request] Token agregado a:', config.url);
+    } else {
+      console.log('🔐 [API Request] Sin token para:', config.url);
     }
+    
     return config;
   },
   (error) => {
@@ -23,35 +51,16 @@ api.interceptors.request.use(
   }
 );
 
-// ✅ NUEVA FUNCIÓN: Obtener token del localStorage correctamente
-const obtenerToken = () => {
-  try {
-    const authStorage = localStorage.getItem('auth-storage');
-    if (!authStorage) return null;
-
-    const authState = JSON.parse(authStorage);
-    
-    // Dependiendo de cómo esté estructurado tu auth store
-    if (authState.state?.token) {
-      return authState.state.token;
-    }
-    
-    // O si está en la raíz del state
-    if (authState.token) {
-      return authState.token;
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error obteniendo token:', error);
-    return null;
-  }
-};
-
 // Interceptor para manejar respuestas
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('❌ [API Response Error]', {
+      url: error.config?.url,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
     if (error.response?.status === 401) {
       // Token expirado o inválido
       localStorage.removeItem('auth-storage');

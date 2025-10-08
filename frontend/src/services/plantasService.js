@@ -7,10 +7,23 @@ export const plantasService = {
     return response.data;
   },
 
-  // Obtener planta por ID
+  // Obtener planta por ID - VERSIÓN LIMPIA
   obtenerPlanta: async (id) => {
-    const response = await api.get(`/plantas/${id}`);
-    return response.data;
+    console.log('🔍 [PLANTAS SERVICE] Obteniendo planta ID:', id);
+    
+    // Validación básica
+    if (!id) {
+      throw new Error('ID de planta no proporcionado');
+    }
+    
+    try {
+      const response = await api.get(`/plantas/${id}`);
+      console.log('✅ [PLANTAS SERVICE] Planta obtenida exitosamente');
+      return response.data;
+    } catch (error) {
+      console.error('❌ [PLANTAS SERVICE] Error al obtener planta:', error);
+      throw error;
+    }
   },
 
   // Crear nueva planta
@@ -21,18 +34,30 @@ export const plantasService = {
 
   // Actualizar planta
   actualizarPlanta: async (id, plantaData) => {
+    if (!id) {
+      throw new Error('ID de planta no proporcionado');
+    }
+    
     const response = await api.put(`/plantas/${id}`, plantaData);
     return response.data;
   },
 
   // Eliminar planta
   eliminarPlanta: async (id) => {
+    if (!id) {
+      throw new Error('ID de planta no proporcionado');
+    }
+    
     const response = await api.delete(`/plantas/${id}`);
     return response.data;
   },
 
   // Obtener plantas por cliente
   obtenerPlantasCliente: async (clienteId) => {
+    if (!clienteId) {
+      throw new Error('ID de cliente no proporcionado');
+    }
+    
     const response = await api.get(`/plantas/cliente/${clienteId}`);
     return response.data;
   },

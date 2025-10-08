@@ -48,4 +48,7 @@ export const incidenciasService = {
     const response = await api.get(`/incidencias/estado/${estado}`);
     return response.data;
   }
+
+  
+  
 };

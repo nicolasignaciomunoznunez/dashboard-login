@@ -28,11 +28,7 @@ const Projects = () => {
       image: "/images/mitigacion.jpg",
       category: "Gestión de riesgos"
     },
-    {
-      title: "Soluciones Integrales",
-      image: "/images/otroproyecto.jpg",
-      category: "Ingeniería aplicada"
-    }
+ 
   ];
 
   return (

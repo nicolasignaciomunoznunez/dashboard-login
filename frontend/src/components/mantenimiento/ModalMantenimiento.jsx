@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useMantenimientoStore } from '../../stores/mantenimientoStore';
 import { usePlantasStore } from '../../stores/plantasStore';
 import { useAuthStore } from '../../stores/authStore';
 
 export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, plantaPreSeleccionada }) {
   const { crearMantenimiento, actualizarMantenimiento, loading } = useMantenimientoStore();
-  const { plantas, obtenerPlantas } = usePlantasStore(); // ✅ Removí resetearPlantasCargadas
+  const { plantas, obtenerPlantas } = usePlantasStore();
   const { user } = useAuthStore();
   
   const [formData, setFormData] = useState({
@@ -15,21 +15,18 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
     fechaProgramada: '',
     estado: 'pendiente'
   });
+  const [errors, setErrors] = useState({});
 
-  // ✅ SOLUCIÓN: handleClose simple
   const handleClose = () => {
     onClose();
   };
 
-  // ✅ SOLUCIÓN SIMPLIFICADA: Solo obtener plantas cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
-      console.log('🎯 MODAL MANTENIMIENTO: Abierto - Obteniendo plantas');
       obtenerPlantas(50);
     }
-  }, [isOpen]); // ✅ Solo dependencia de isOpen
+  }, [isOpen]);
 
-  // ✅ SOLUCIÓN: Resetear formulario cuando cambia mantenimiento o plantaPreSeleccionada
   useEffect(() => {
     if (mantenimiento) {
       setFormData({
@@ -49,13 +46,58 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
         estado: 'pendiente'
       });
     }
-  }, [mantenimiento, plantaPreSeleccionada]);
+    setErrors({});
+  }, [mantenimiento, plantaPreSeleccionada, isOpen]);
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.plantId) {
+      newErrors.plantId = 'Selecciona una planta';
+    }
+    
+    if (!formData.descripcion.trim()) {
+      newErrors.descripcion = 'La descripción es requerida';
+    } else if (formData.descripcion.trim().length < 10) {
+      newErrors.descripcion = 'La descripción debe tener al menos 10 caracteres';
+    }
+    
+    if (!formData.fechaProgramada) {
+      newErrors.fechaProgramada = 'La fecha programada es requerida';
+    } else {
+      const selectedDate = new Date(formData.fechaProgramada);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        newErrors.fechaProgramada = 'La fecha no puede ser en el pasado';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Limpiar error del campo cuando el usuario empiece a escribir
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: ''
+      });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.plantId || !formData.descripcion || !formData.fechaProgramada) {
-      alert('Planta, descripción y fecha programada son requeridos');
+    if (!validateForm()) {
       return;
     }
 
@@ -71,38 +113,64 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
       handleClose();
     } catch (error) {
       console.error('Error al guardar mantenimiento:', error);
-      alert('Error: ' + error.message);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const esEdicion = !!mantenimiento;
+  const puedeGestionarEstado = user?.rol === 'admin' || user?.rol === 'tecnico';
+
+  const tiposMantenimiento = {
+    preventivo: { label: 'Preventivo', color: 'text-purple-600 bg-purple-50 border-purple-200' },
+    correctivo: { label: 'Correctivo', color: 'text-orange-600 bg-orange-50 border-orange-200' }
+  };
+
+  const estadosMantenimiento = {
+    pendiente: { label: 'Pendiente', color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
+    en_progreso: { label: 'En Progreso', color: 'text-blue-600 bg-blue-50 border-blue-200' },
+    completado: { label: 'Completado', color: 'text-green-600 bg-green-50 border-green-200' }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {mantenimiento ? 'Editar Mantenimiento' : 'Programar Mantenimiento'}
-          </h2>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div 
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all duration-300 scale-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                {esEdicion ? 'Editar Mantenimiento' : 'Programar Mantenimiento'}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {esEdicion ? 'Actualiza la información del mantenimiento' : 'Programa un nuevo mantenimiento para la planta'}
+              </p>
+            </div>
+          </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            type="button"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label htmlFor="plantId" className="block text-sm font-medium text-gray-700 mb-1">
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Campo Planta */}
+          <div className="space-y-2">
+            <label htmlFor="plantId" className="block text-sm font-medium text-gray-700">
               Planta *
             </label>
             <select
@@ -111,37 +179,61 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
               required
               value={formData.plantId}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                errors.plantId 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
             >
-              <option value="">Seleccionar planta</option>
+              <option value="">Seleccionar planta...</option>
               {plantas.map((planta) => (
                 <option key={planta.id} value={planta.id}>
                   {planta.nombre} - {planta.ubicacion}
                 </option>
               ))}
             </select>
+            {errors.plantId && (
+              <p className="text-sm text-red-600 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.plantId}
+              </p>
+            )}
           </div>
 
-          {/* ... resto del formulario igual ... */}
-          <div>
-            <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1">
+          {/* Campo Tipo */}
+          <div className="space-y-2">
+            <label htmlFor="tipo" className="block text-sm font-medium text-gray-700">
               Tipo de Mantenimiento *
             </label>
-            <select
-              id="tipo"
-              name="tipo"
-              required
-              value={formData.tipo}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="preventivo">Preventivo</option>
-              <option value="correctivo">Correctivo</option>
-            </select>
+            <div className="flex gap-3">
+              <select
+                id="tipo"
+                name="tipo"
+                required
+                value={formData.tipo}
+                onChange={handleChange}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+              >
+                <option value="preventivo">Preventivo</option>
+                <option value="correctivo">Correctivo</option>
+              </select>
+              <span className={`px-4 py-3 rounded-xl text-sm font-medium border ${tiposMantenimiento[formData.tipo]?.color}`}>
+                {tiposMantenimiento[formData.tipo]?.label}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">
+              {formData.tipo === 'preventivo' 
+                ? 'Mantenimiento programado para prevenir fallos' 
+                : 'Mantenimiento para corregir fallos existentes'
+              }
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="fechaProgramada" className="block text-sm font-medium text-gray-700 mb-1">
+          {/* Campo Fecha Programada */}
+          <div className="space-y-2">
+            <label htmlFor="fechaProgramada" className="block text-sm font-medium text-gray-700">
               Fecha Programada *
             </label>
             <input
@@ -152,13 +244,26 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
               value={formData.fechaProgramada}
               onChange={handleChange}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                errors.fechaProgramada 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
             />
+            {errors.fechaProgramada && (
+              <p className="text-sm text-red-600 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.fechaProgramada}
+              </p>
+            )}
           </div>
 
-          <div>
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción *
+          {/* Campo Descripción */}
+          <div className="space-y-2">
+            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">
+              Descripción del Mantenimiento *
             </label>
             <textarea
               id="descripcion"
@@ -167,44 +272,100 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
               rows={4}
               value={formData.descripcion}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              placeholder="Describa las tareas de mantenimiento a realizar..."
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
+                errors.descripcion 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+              placeholder="Describe en detalle las tareas de mantenimiento a realizar, herramientas necesarias y procedimientos..."
             />
+            {errors.descripcion && (
+              <p className="text-sm text-red-600 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errors.descripcion}
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
+              Mínimo 10 caracteres. Incluye todos los detalles para una ejecución eficiente.
+            </p>
           </div>
 
-          {(user?.rol === 'admin' || user?.rol === 'tecnico') && (
-            <div>
-              <label htmlFor="estado" className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
+          {/* Campo Estado (solo para admin/tecnico) */}
+          {puedeGestionarEstado && (
+            <div className="space-y-2">
+              <label htmlFor="estado" className="block text-sm font-medium text-gray-700">
+                Estado del Mantenimiento
               </label>
-              <select
-                id="estado"
-                name="estado"
-                value={formData.estado}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="pendiente">Pendiente</option>
-                <option value="en_progreso">En Progreso</option>
-                <option value="completado">Completado</option>
-              </select>
+              <div className="flex gap-3">
+                <select
+                  id="estado"
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleChange}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                >
+                  <option value="pendiente">Pendiente</option>
+                  <option value="en_progreso">En Progreso</option>
+                  <option value="completado">Completado</option>
+                </select>
+                <span className={`px-4 py-3 rounded-xl text-sm font-medium border ${estadosMantenimiento[formData.estado]?.color}`}>
+                  {estadosMantenimiento[formData.estado]?.label}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                Solo administradores y técnicos pueden modificar el estado.
+              </p>
             </div>
           )}
 
-          <div className="flex justify-end space-x-3 pt-4">
+          {/* Información del usuario */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white text-xs font-semibold">
+                  {user?.nombre?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              </div>
+              <div className="text-sm">
+                <p className="text-gray-900 font-medium">{user?.nombre || 'Usuario'}</p>
+                <p className="text-gray-500 capitalize">{user?.rol || 'sin rol'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              disabled={loading}
+              className="px-6 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {loading ? 'Guardando...' : (mantenimiento ? 'Actualizar' : 'Programar')}
+              {loading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {esEdicion ? 'Actualizar' : 'Programar'} Mantenimiento
+                </>
+              )}
             </button>
           </div>
         </form>

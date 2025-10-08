@@ -1,4 +1,3 @@
-// App.jsx - VERSIÓN CON LANDING PAGE
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
@@ -12,7 +11,7 @@ import PlantaDetalle from './pages/PlantaDetalle';
 import Incidencias from './pages/Incidencias';
 import Mantenimiento from './pages/Mantenimiento';
 import Reportes from './pages/Reportes';
-import LandingPage from './pages/LandingPage'; // ✅ Agregar Landing Page
+import LandingPage from './pages/LandingPage'; 
 
 function App() {
   const { isAuthenticated, login, setLoading, isLoading } = useAuthStore();
@@ -20,7 +19,6 @@ function App() {
 
   console.log('🔄 [APP] Render - authChecked:', authChecked, 'isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
 
-  // ✅ Efecto que se ejecuta SOLO UNA VEZ al montar la app
   useEffect(() => {
     console.log('🔄 [APP] useEffect montado - verificando autenticación inicial');
     
@@ -37,7 +35,6 @@ function App() {
           login(result.usuario);
         } else {
           console.log('❌ [APP] Usuario NO autenticado');
-          // No hacer nada, dejar isAuthenticated en false
         }
       } catch (error) {
         console.error('❌ [APP] Error crítico en verifyInitialAuth:', error);
@@ -48,13 +45,11 @@ function App() {
       }
     };
 
-    // Ejecutar solo si no hemos verificado antes
     if (!authChecked) {
       verifyInitialAuth();
     }
   }, [authChecked, login, setLoading]);
 
-  // ✅ Loading inicial (ANTES de verificar autenticación)
   if (!authChecked || isLoading) {
     console.log('🔄 [APP] Mostrando loading inicial...');
     return (
@@ -73,27 +68,35 @@ function App() {
         {/* ✅ RUTA PÚBLICA PRINCIPAL: Landing Page (siempre accesible) */}
         <Route path="/" element={<LandingPage />} />
         
-        {/* ✅ RUTAS PÚBLICAS: Login y Register (solo cuando NO está autenticado) */}
-        {!isAuthenticated ? (
+        {/* ✅ RUTAS PÚBLICAS: Login y Register (redirigen a dashboard si ya está autenticado) */}
+        <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" replace />} />
+        
+        {/* ✅ RUTAS PROTEGIDAS DEL DASHBOARD */}
+        <Route path="/dashboard" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
+          <Route index element={<Dashboard />} />
+          <Route path="plantas" element={<Plantas />} />
+          <Route path="plantas/:id" element={<PlantaDetalle />} />
+          <Route path="incidencias" element={<Incidencias />} />
+          <Route path="mantenimientos" element={<Mantenimiento />} />
+          <Route path="reportes" element={<Reportes />} />
+        </Route>
+
+        {/* ✅ REDIRECCIONES PARA RUTAS DIRECTAS CUANDO ESTÁ AUTENTICADO */}
+        {isAuthenticated && (
           <>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            {/* Redirigir rutas desconocidas al landing page */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/plantas" element={<Navigate to="/dashboard/plantas" replace />} />
+            {/* ✅ SE ELIMINÓ la línea problemática que causaba el :id literal */}
+            <Route path="/incidencias" element={<Navigate to="/dashboard/incidencias" replace />} />
+            <Route path="/mantenimientos" element={<Navigate to="/dashboard/mantenimientos" replace />} />
+            <Route path="/reportes" element={<Navigate to="/dashboard/reportes" replace />} />
           </>
-        ) : (
-          /* ✅ RUTAS PROTEGIDAS DEL DASHBOARD (solo cuando ESTÁ autenticado) */
-          <Route path="/dashboard" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="plantas" element={<Plantas />} />
-            <Route path="plantas/:id" element={<PlantaDetalle />} />
-            <Route path="incidencias" element={<Incidencias />} />
-            <Route path="mantenimientos" element={<Mantenimiento />} />
-            <Route path="reportes" element={<Reportes />} />
-            {/* Redirigir rutas desconocidas del dashboard al dashboard principal */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Route>
         )}
+
+        {/* ✅ REDIRECCIÓN GLOBAL MEJORADA */}
+        <Route path="*" element={
+          <Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />
+        } />
       </Routes>
     </BrowserRouter>
   );

@@ -83,7 +83,7 @@ export default function Login() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">AquaMaint</h1>
+            <h1 className="text-2xl font-bold text-gray-900">RYV SPA</h1>
             <p className="text-gray-600 text-sm mt-2">Mantenimiento Industrial</p>
           </div>
 
@@ -218,7 +218,7 @@ export default function Login() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-500">
-              © 2024 AquaMaint. Sistema de Gestión de Mantenimiento Industrial para Plantas de Agua Potable.
+              © 2024 RYV SPA. Sistema de Gestión de Mantenimiento Industrial para Plantas de Agua Potable.
             </p>
           </div>
         </div>

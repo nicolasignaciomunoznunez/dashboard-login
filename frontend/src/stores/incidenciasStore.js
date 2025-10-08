@@ -43,7 +43,7 @@ export const useIncidenciasStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await incidenciasService.crearIncidencia(incidenciaData);
-      // ✅ SOLUCIÓN: Actualizar localmente SIN nueva llamada API
+
       const nuevaIncidencia = response.incidencia;
       set(state => ({ 
         incidencias: [nuevaIncidencia, ...state.incidencias],
@@ -71,6 +71,30 @@ export const useIncidenciasStore = create((set, get) => ({
       return response;
     } catch (error) {
       set({ error: error.response?.data?.message || 'Error al cambiar estado', loading: false });
+      throw error;
+    }
+  },
+  
+  // ✅ AGREGADO: Actualizar incidencia (título, descripción, etc.)
+  actualizarIncidencia: async (id, datosActualizacion) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await incidenciasService.actualizarIncidencia(id, datosActualizacion);
+      
+      // Actualizar en el estado local
+      set(state => ({
+        incidencias: state.incidencias.map(inc => 
+          inc.id === id ? { ...inc, ...datosActualizacion } : inc
+        ),
+        incidenciaSeleccionada: state.incidenciaSeleccionada?.id === id 
+          ? { ...state.incidenciaSeleccionada, ...datosActualizacion }
+          : state.incidenciaSeleccionada,
+        loading: false
+      }));
+      
+      return response;
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error al actualizar incidencia', loading: false });
       throw error;
     }
   },
