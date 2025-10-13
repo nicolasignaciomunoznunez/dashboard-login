@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
 import { authService } from './services/authService';
 import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -68,32 +69,64 @@ function App() {
         {/* ✅ RUTA PÚBLICA PRINCIPAL: Landing Page (siempre accesible) */}
         <Route path="/" element={<LandingPage />} />
         
-        {/* ✅ RUTAS PÚBLICAS: Login y Register (redirigen a dashboard si ya está autenticado) */}
+        {/* ✅ RUTAS PÚBLICAS: Login y Register */}
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
         <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" replace />} />
         
-        {/* ✅ RUTAS PROTEGIDAS DEL DASHBOARD */}
-        <Route path="/dashboard" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
+        {/* ✅ RUTAS PROTEGIDAS CON PROTECTEDROUTE Y CONTROL DE ROLES */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Dashboard />} />
-          <Route path="plantas" element={<Plantas />} />
-          <Route path="plantas/:id" element={<PlantaDetalle />} />
-          <Route path="incidencias" element={<Incidencias />} />
-          <Route path="mantenimientos" element={<Mantenimiento />} />
-          <Route path="reportes" element={<Reportes />} />
+          
+          {/* PLANTAS: Admin y Técnico pueden ver */}
+          <Route path="plantas" element={
+            <ProtectedRoute roles={['admin']}>
+              <Plantas />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="plantas/:id" element={
+            <ProtectedRoute roles={['admin', 'tecnico']}>
+              <PlantaDetalle />
+            </ProtectedRoute>
+          } />
+          
+          {/* INCIDENCIAS: Todos los roles pueden ver */}
+          <Route path="incidencias" element={
+            <ProtectedRoute roles={['admin', 'tecnico', 'cliente']}>
+              <Incidencias />
+            </ProtectedRoute>
+          } />
+          
+          {/* MANTENIMIENTOS: Admin y Técnico */}
+          <Route path="mantenimientos" element={
+            <ProtectedRoute roles={['admin', 'tecnico']}>
+              <Mantenimiento />
+            </ProtectedRoute>
+          } />
+          
+          {/* REPORTES: Admin y Técnico */}
+          <Route path="reportes" element={
+            <ProtectedRoute roles={['admin', 'tecnico']}>
+              <Reportes />
+            </ProtectedRoute>
+          } />
         </Route>
 
-        {/* ✅ REDIRECCIONES PARA RUTAS DIRECTAS CUANDO ESTÁ AUTENTICADO */}
+        {/* ✅ REDIRECCIONES PARA RUTAS DIRECTAS */}
         {isAuthenticated && (
           <>
             <Route path="/plantas" element={<Navigate to="/dashboard/plantas" replace />} />
-            {/* ✅ SE ELIMINÓ la línea problemática que causaba el :id literal */}
             <Route path="/incidencias" element={<Navigate to="/dashboard/incidencias" replace />} />
             <Route path="/mantenimientos" element={<Navigate to="/dashboard/mantenimientos" replace />} />
             <Route path="/reportes" element={<Navigate to="/dashboard/reportes" replace />} />
           </>
         )}
 
-        {/* ✅ REDIRECCIÓN GLOBAL MEJORADA */}
+        {/* ✅ REDIRECCIÓN GLOBAL */}
         <Route path="*" element={
           <Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />
         } />

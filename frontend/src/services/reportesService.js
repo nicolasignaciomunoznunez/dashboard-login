@@ -33,10 +33,10 @@ export const reportesService = {
   },
 
   // Descargar reporte
-  descargarReporte: async (rutaArchivo) => {
-    const response = await api.get(`/reportes/descargar/${encodeURIComponent(rutaArchivo)}`, {
-      responseType: 'blob'
+descargarReporte: async (reporteId) => {
+    const response = await api.get(`/reportes/descargar/${reporteId}`, {
+        responseType: 'blob'
     });
     return response.data;
-  }
+}
 };

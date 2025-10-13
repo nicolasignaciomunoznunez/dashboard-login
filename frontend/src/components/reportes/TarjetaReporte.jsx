@@ -1,10 +1,11 @@
-// components/reportes/TarjetaReporte.jsx - MEJORADO
+// components/reportes/TarjetaReporte.jsx - COMPLETO Y CORREGIDO
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 
-export default function TarjetaReporte({ reporte, plantas, onDescargarReporte }) {
+export default function TarjetaReporte({ reporte, plantas, onDescargarReporte, onEliminarReporte }) {
   const { user } = useAuthStore();
   const [descargando, setDescargando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
 
   // Obtener nombre de la planta
   const obtenerNombrePlanta = () => {
@@ -27,21 +28,41 @@ export default function TarjetaReporte({ reporte, plantas, onDescargarReporte })
 
   const obtenerNombreArchivo = () => {
     if (reporte.rutaArchivo) {
-      return reporte.rutaArchivo.split('/').pop() || 'reporte.pdf';
+        return reporte.rutaArchivo.split('/').pop() || 'reporte.pdf';
     }
-    return `reporte_${reporte.plantId}_${reporte.fecha}.pdf`;
+    return `reporte_${reporte.tipo}_${reporte.plantId}_${reporte.fecha}.pdf`;
   };
 
   const handleDescargar = async () => {
-    if (!onDescargarReporte || !reporte.rutaArchivo) return;
+    if (!onDescargarReporte || !reporte.id) return;
     
     setDescargando(true);
     try {
-      await onDescargarReporte(reporte.rutaArchivo);
+        await onDescargarReporte(reporte.id);
     } catch (error) {
-      console.error('Error al descargar:', error);
+        console.error('Error al descargar:', error);
+        alert('Error al descargar el reporte: ' + error.message);
     } finally {
-      setDescargando(false);
+        setDescargando(false);
+    }
+  };
+
+  // ✅ FUNCIÓN PARA ELIMINAR REPORTE
+  const handleEliminar = async () => {
+    if (!onEliminarReporte || !reporte.id) return;
+    
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este reporte?')) {
+      return;
+    }
+    
+    setEliminando(true);
+    try {
+        await onEliminarReporte(reporte.id);
+    } catch (error) {
+        console.error('Error al eliminar:', error);
+        alert('Error al eliminar el reporte: ' + error.message);
+    } finally {
+        setEliminando(false);
     }
   };
 
@@ -107,9 +128,10 @@ export default function TarjetaReporte({ reporte, plantas, onDescargarReporte })
         </div>
         
         <div className="flex gap-2">
+          {/* BOTÓN DESCARGAR */}
           <button
             onClick={handleDescargar}
-            disabled={descargando || !reporte.rutaArchivo}
+            disabled={descargando || !reporte.id}
             className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
           >
             {descargando ? (
@@ -130,15 +152,24 @@ export default function TarjetaReporte({ reporte, plantas, onDescargarReporte })
             )}
           </button>
           
+          {/* ✅ BOTÓN ELIMINAR - CORREGIDO */}
           {puedeEliminar && (
             <button
-              onClick={() => {/* Agregar función de eliminar */}}
-              className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 border border-transparent hover:border-red-200"
+              onClick={handleEliminar}
+              disabled={eliminando}
+              className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 border border-transparent hover:border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Eliminar reporte"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              {eliminando ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              )}
             </button>
           )}
         </div>

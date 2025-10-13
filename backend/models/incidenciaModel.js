@@ -10,10 +10,10 @@ export class Incidencia {
         this.estado = incidencia.estado;
         this.fechaReporte = incidencia.fechaReporte;
         this.fechaResolucion = incidencia.fechaResolucion;
-        this.usuario = incidencia.usuario; // Para joins
-        this.planta = incidencia.planta; // Para joins
-        this.plantaNombre = incidencia.plantaNombre; // Nombre directo de la planta
-        this.usuarioNombre = incidencia.usuarioNombre; // Nombre directo del usuario
+        this.usuario = incidencia.usuario;
+        this.planta = incidencia.planta;
+        this.plantaNombre = incidencia.plantaNombre;
+        this.usuarioNombre = incidencia.usuarioNombre;
     }
 
     // Crear nueva incidencia
@@ -59,10 +59,9 @@ export class Incidencia {
         }
     }
 
-// Obtener todas las incidencias - CORREGIDO
-static async obtenerTodas(limite = 10, pagina = 1) {
+   // Obtener todas las incidencias - ALTERNATIVA MÁS SEGURA
+static async obtenerTodas(limite = 10, pagina = 1, filtros = {}) {
     try {
-        // Convertir y validar números
         const limiteNum = Number(limite);
         const paginaNum = Number(pagina);
         
@@ -72,19 +71,41 @@ static async obtenerTodas(limite = 10, pagina = 1) {
         
         const offset = (paginaNum - 1) * limiteNum;
         
-        // ✅ SOLUCIÓN: Usar template literals con números validados
-        const query = `
+        let query = `
             SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
             FROM incidencias i 
             LEFT JOIN users u ON i.userId = u.id 
             LEFT JOIN plants p ON i.plantId = p.id 
-            ORDER BY i.fechaReporte DESC 
-            LIMIT ${limiteNum} OFFSET ${offset}
         `;
         
-        console.log('🔍 Query incidencias:', query);
+        const condiciones = [];
+        const parametros = [];
         
-        const [incidencias] = await pool.execute(query);
+        if (filtros.userId) {
+            condiciones.push('i.userId = ?');
+            parametros.push(filtros.userId);
+        }
+        
+        if (filtros.plantId) {
+            condiciones.push('i.plantId = ?');
+            parametros.push(filtros.plantId);
+        }
+        
+        if (filtros.estado) {
+            condiciones.push('i.estado = ?');
+            parametros.push(filtros.estado);
+        }
+        
+        if (condiciones.length > 0) {
+            query += ` WHERE ${condiciones.join(' AND ')}`;
+        }
+        
+        // ✅ ALTERNATIVA: Usar template literals para números (más seguro)
+        query += ` ORDER BY i.fechaReporte DESC LIMIT ${limiteNum} OFFSET ${offset}`;
+        
+        console.log('🔍 [MODEL] Query obtenerTodas:', { query, parametros });
+        
+        const [incidencias] = await pool.execute(query, parametros);
         
         return incidencias.map(incidencia => new Incidencia(incidencia));
     } catch (error) {
@@ -93,18 +114,34 @@ static async obtenerTodas(limite = 10, pagina = 1) {
     }
 }
 
-    // Obtener incidencias por planta
-    static async obtenerPorPlanta(plantId) {
+    // Obtener incidencias por planta - MODIFICADO PARA ACEPTAR FILTROS
+    static async obtenerPorPlanta(plantId, filtros = {}) {
         try {
-            const [incidencias] = await pool.execute(
-                `SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
-                 FROM incidencias i 
-                 LEFT JOIN users u ON i.userId = u.id 
-                 LEFT JOIN plants p ON i.plantId = p.id 
-                 WHERE i.plantId = ? 
-                 ORDER BY i.fechaReporte DESC`,
-                [plantId]
-            );
+            let query = `
+                SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
+                FROM incidencias i 
+                LEFT JOIN users u ON i.userId = u.id 
+                LEFT JOIN plants p ON i.plantId = p.id 
+                WHERE i.plantId = ? 
+            `;
+            
+            const parametros = [plantId];
+            
+            if (filtros.userId) {
+                query += ` AND i.userId = ?`;
+                parametros.push(filtros.userId);
+            }
+            
+            if (filtros.estado) {
+                query += ` AND i.estado = ?`;
+                parametros.push(filtros.estado);
+            }
+            
+            query += ` ORDER BY i.fechaReporte DESC`;
+            
+            console.log('🔍 [MODEL] Query obtenerPorPlanta:', { query, parametros });
+            
+            const [incidencias] = await pool.execute(query, parametros);
 
             return incidencias.map(incidencia => new Incidencia(incidencia));
         } catch (error) {
@@ -112,18 +149,34 @@ static async obtenerTodas(limite = 10, pagina = 1) {
         }
     }
 
-    // Obtener incidencias por estado
-    static async obtenerPorEstado(estado) {
+    // Obtener incidencias por estado - MODIFICADO PARA ACEPTAR FILTROS
+    static async obtenerPorEstado(estado, filtros = {}) {
         try {
-            const [incidencias] = await pool.execute(
-                `SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
-                 FROM incidencias i 
-                 LEFT JOIN users u ON i.userId = u.id 
-                 LEFT JOIN plants p ON i.plantId = p.id 
-                 WHERE i.estado = ? 
-                 ORDER BY i.fechaReporte DESC`,
-                [estado]
-            );
+            let query = `
+                SELECT i.*, u.nombre as usuarioNombre, p.nombre as plantaNombre 
+                FROM incidencias i 
+                LEFT JOIN users u ON i.userId = u.id 
+                LEFT JOIN plants p ON i.plantId = p.id 
+                WHERE i.estado = ? 
+            `;
+            
+            const parametros = [estado];
+            
+            if (filtros.userId) {
+                query += ` AND i.userId = ?`;
+                parametros.push(filtros.userId);
+            }
+            
+            if (filtros.plantId) {
+                query += ` AND i.plantId = ?`;
+                parametros.push(filtros.plantId);
+            }
+            
+            query += ` ORDER BY i.fechaReporte DESC`;
+            
+            console.log('🔍 [MODEL] Query obtenerPorEstado:', { query, parametros });
+            
+            const [incidencias] = await pool.execute(query, parametros);
 
             return incidencias.map(incidencia => new Incidencia(incidencia));
         } catch (error) {
@@ -192,4 +245,4 @@ static async obtenerTodas(limite = 10, pagina = 1) {
             throw new Error(`Error al eliminar incidencia: ${error.message}`);
         }
     }
-}
+} // ✅ AQUÍ ESTÁ LA LLAVE DE CIERRE QUE FALTABA

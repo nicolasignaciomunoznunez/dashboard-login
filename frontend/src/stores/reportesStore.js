@@ -14,32 +14,35 @@ export const useReportesStore = create((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
 
-  // Obtener todos los reportes
-  obtenerReportes: async (limite = 50, pagina = 1) => {
-    const state = get();
-    if (state.loading || state.reportesCargados) {
-      return state.reportes;
-    }
 
-    set({ loading: true, error: null });
-    try {
-      console.log('🔄 Obteniendo reportes...');
-      const response = await reportesService.obtenerReportes(limite, pagina); // ✅ Cambiar servicio
-      
-      console.log('✅ Reportes obtenidos:', response);
-      
-      set({ 
-        reportes: response.reportes || response, 
-        loading: false,
-        reportesCargados: true
-      });
-      return response;
-    } catch (error) {
-      console.error('❌ Error al obtener reportes:', error);
-      set({ error: error.response?.data?.message || 'Error al obtener reportes', loading: false });
-      throw error;
-    }
-  },
+// Obtener todos los reportes - VERSIÓN CORREGIDA
+obtenerReportes: async (limite = 50, pagina = 1, forzarRecarga = false) => {
+  const state = get();
+  
+  // ✅ SOLO evitar si ya está cargando, PERMITIR recarga forzada
+  if (state.loading && !forzarRecarga) {
+    return state.reportes;
+  }
+
+  set({ loading: true, error: null });
+  try {
+    console.log('🔄 Obteniendo reportes...', { limite, pagina, forzarRecarga });
+    const response = await reportesService.obtenerReportes(limite, pagina);
+    
+    console.log('✅ Reportes obtenidos:', response);
+    
+    set({ 
+      reportes: response.reportes || response, 
+      loading: false,
+      reportesCargados: true
+    });
+    return response;
+  } catch (error) {
+    console.error('❌ Error al obtener reportes:', error);
+    set({ error: error.response?.data?.message || 'Error al obtener reportes', loading: false });
+    throw error;
+  }
+},
 
   // Obtener reporte por ID
   obtenerReporte: async (id) => {
@@ -106,28 +109,30 @@ export const useReportesStore = create((set, get) => ({
   },
 
   // Descargar reporte
-  descargarReporte: async (rutaArchivo, nombreArchivo = 'reporte.pdf') => {
+descargarReporte: async (reporteId, nombreArchivo = 'reporte.pdf') => {
     try {
-      console.log('🔄 Descargando reporte:', rutaArchivo);
-      const blob = await reportesService.descargarReporte(rutaArchivo); // ✅ Cambiar servicio
-      
-      // Crear enlace de descarga
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = nombreArchivo;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log('✅ Reporte descargado');
-      return true;
+        console.log('🔄 Descargando reporte ID:', reporteId);
+        
+        // ✅ Usar el ID del reporte
+        const blob = await reportesService.descargarReporte(reporteId);
+        
+        // Crear enlace de descarga
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombreArchivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('✅ Reporte descargado');
+        return true;
     } catch (error) {
-      console.error('❌ Error al descargar reporte:', error);
-      throw error;
+        console.error('❌ Error al descargar reporte:', error);
+        throw error;
     }
-  },
+},
 
   // Resetear estado
   resetearReportesCargados: () => set({ reportesCargados: false }),

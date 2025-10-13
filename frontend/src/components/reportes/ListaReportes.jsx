@@ -1,7 +1,7 @@
 // components/reportes/ListaReportes.jsx
 import TarjetaReporte from './TarjetaReporte';
 
-export default function ListaReportes({ reportes, plantas, onDescargarReporte, loading }) {
+export default function ListaReportes({ reportes, plantas, onDescargarReporte, onEliminarReporte,loading }) {
   if (loading && reportes.length === 0) {
     return (
       <div className="space-y-4">
@@ -42,6 +42,7 @@ export default function ListaReportes({ reportes, plantas, onDescargarReporte, l
           reporte={reporte}
           plantas={plantas}
           onDescargarReporte={onDescargarReporte}
+          onEliminarReporte={onEliminarReporte}
         />
       ))}
     </div>

@@ -1,6 +1,9 @@
 // components/mantenimiento/TarjetasMetricasMantenimiento.jsx
+import { useMemo } from 'react';
+
 export default function TarjetasMetricasMantenimiento({ metricas }) {
-  const tarjetas = [
+  // ✅ OPTIMIZACIÓN: useMemo para evitar recreación en cada render
+  const tarjetas = useMemo(() => [
     {
       titulo: 'Total Mantenimientos',
       valor: metricas?.total || 0,
@@ -11,7 +14,8 @@ export default function TarjetasMetricasMantenimiento({ metricas }) {
         </svg>
       ),
       color: 'blue',
-      descripcion: 'Mantenimientos programados'
+      descripcion: 'Mantenimientos programados',
+      esCritico: false
     },
     {
       titulo: 'Pendientes',
@@ -22,7 +26,8 @@ export default function TarjetasMetricasMantenimiento({ metricas }) {
         </svg>
       ),
       color: 'yellow',
-      descripcion: 'Por iniciar'
+      descripcion: 'Por iniciar',
+      esCritico: metricas?.pendientes > 5 // ✅ ALERTA SI HAY MUCHOS PENDIENTES
     },
     {
       titulo: 'En Progreso',
@@ -33,7 +38,8 @@ export default function TarjetasMetricasMantenimiento({ metricas }) {
         </svg>
       ),
       color: 'orange',
-      descripcion: 'En ejecución'
+      descripcion: 'En ejecución',
+      esCritico: false
     },
     {
       titulo: 'Próximos a Vencer',
@@ -44,57 +50,80 @@ export default function TarjetasMetricasMantenimiento({ metricas }) {
         </svg>
       ),
       color: 'red',
-      descripcion: 'En los próximos 7 días'
+      descripcion: 'En los próximos 7 días',
+      esCritico: metricas?.proximosVencimientos > 0 // ✅ SIEMPRE CRÍTICO
     }
-  ];
+  ], [metricas]); // ✅ DEPENDENCIA: solo se recalcula si metricas cambia
 
-  const getColorClasses = (color) => {
+  // ✅ OPTIMIZACIÓN: useMemo para colores también
+  const getColorClasses = useMemo(() => (color) => {
     const colors = {
       blue: {
         bg: 'bg-blue-50',
         border: 'border-blue-200',
         text: 'text-blue-700',
         accent: 'bg-blue-500',
-        icon: 'text-blue-600'
+        icon: 'text-blue-600',
+        critico: 'border-blue-300 ring-2 ring-blue-100' // ✅ EFECTO PARA CRÍTICO
       },
       yellow: {
         bg: 'bg-yellow-50',
         border: 'border-yellow-200',
         text: 'text-yellow-700',
         accent: 'bg-yellow-500',
-        icon: 'text-yellow-600'
+        icon: 'text-yellow-600',
+        critico: 'border-yellow-300 ring-2 ring-yellow-100'
       },
       orange: {
         bg: 'bg-orange-50',
         border: 'border-orange-200',
         text: 'text-orange-700',
         accent: 'bg-orange-500',
-        icon: 'text-orange-600'
+        icon: 'text-orange-600',
+        critico: 'border-orange-300 ring-2 ring-orange-100'
       },
       red: {
         bg: 'bg-red-50',
         border: 'border-red-200',
         text: 'text-red-700',
         accent: 'bg-red-500',
-        icon: 'text-red-600'
+        icon: 'text-red-600',
+        critico: 'border-red-300 ring-2 ring-red-100'
       }
     };
     return colors[color] || colors.blue;
+  }, []);
+
+  // ✅ CALCULAR PORCENTAJE MÁS INTELIGENTE
+  const calcularPorcentaje = (tarjeta) => {
+    if (tarjeta.titulo === 'Total Mantenimientos') return 100;
+    if (tarjeta.titulo === 'Próximos a Vencer') {
+      return Math.min((tarjeta.valor / Math.max(metricas?.pendientes || 1, 1)) * 100, 100);
+    }
+    return Math.min((tarjeta.valor / Math.max(metricas?.total || 1, 1)) * 100, 100);
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {tarjetas.map((tarjeta, index) => {
         const colors = getColorClasses(tarjeta.color);
+        const porcentaje = calcularPorcentaje(tarjeta);
         
         return (
           <div
             key={index}
-            className={`bg-white rounded-2xl p-6 shadow-sm border ${colors.border} hover:shadow-md transition-all duration-300 group cursor-pointer`}
+            className={`bg-white rounded-2xl p-6 shadow-sm border ${colors.border} ${
+              tarjeta.esCritico ? colors.critico : ''
+            } hover:shadow-md transition-all duration-300 group cursor-pointer`}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 mb-1">{tarjeta.titulo}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-gray-600">{tarjeta.titulo}</p>
+                  {tarjeta.esCritico && (
+                    <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                  )}
+                </div>
                 <p className="text-3xl font-bold text-gray-900 mb-2">{tarjeta.valor}</p>
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${colors.accent}`}></div>
@@ -108,15 +137,21 @@ export default function TarjetasMetricasMantenimiento({ metricas }) {
               </div>
             </div>
             
-            {/* Barra de progreso sutil (opcional) */}
+            {/* Barra de progreso mejorada */}
             <div className="mt-4 w-full bg-gray-100 rounded-full h-1">
               <div 
-                className={`h-1 rounded-full ${colors.accent} transition-all duration-500`}
-                style={{ 
-                  width: `${Math.min((tarjeta.valor / Math.max(metricas?.total || 1, 1)) * 100, 100)}%` 
-                }}
+                className={`h-1 rounded-full ${colors.accent} transition-all duration-1000 ease-out`}
+                style={{ width: `${porcentaje}%` }}
               ></div>
             </div>
+
+            {/* ✅ INDICADOR DE PORCENTAJE (opcional) */}
+            {tarjeta.titulo !== 'Total Mantenimientos' && (
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Progreso</span>
+                <span>{Math.round(porcentaje)}%</span>
+              </div>
+            )}
           </div>
         );
       })}

@@ -11,7 +11,8 @@ export default function ModalReporte({ isOpen, onClose, plantas }) {
     plantId: '',
     tipo: 'general',
     descripcion: '',
-    periodo: 'mensual'
+    periodo: 'mensual',
+     titulo: ''  // ✅ AGREGAR TITULO
   });
 
   const handleChange = (e) => {
@@ -22,40 +23,36 @@ export default function ModalReporte({ isOpen, onClose, plantas }) {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!formData.plantId) {
+    alert('Selecciona una planta');
+    return;
+  }
+
+  
+  try {
+    // ✅ SOLO crear el registro en BD (sin enviar rutaArchivo)
+    const response = await generarReporte({
+      ...formData,
+      generadoPor: user?.id,
+      fecha: new Date().toISOString().split('T')[0],
+       titulo: formData.titulo || `Reporte ${formData.tipo} - ${formData.periodo}`  // ✅ ENVIAR TITULO
+    });
     
-    if (!formData.plantId) {
-      alert('Selecciona una planta');
-      return;
+    // Inmediatamente descargar el PDF real usando el ID
+    if (response.reporte?.id) {
+      await useReportesStore.getState().descargarReporte(response.reporte.id);
     }
-
-    try {
-      // ✅ GENERAR RUTA_ARCHIVO AUTOMÁTICAMENTE
-      const fecha = new Date().toISOString().split('T')[0];
-      const nombreArchivo = `reporte_${formData.tipo}_${formData.plantId}_${fecha}.pdf`;
-      const rutaArchivo = `/reportes/${nombreArchivo}`;
-
-      await generarReporte({
-        ...formData,
-        generadoPor: user?.id,
-        rutaArchivo: rutaArchivo, // ✅ AGREGAR RUTA_ARCHIVO
-        fecha: fecha // ✅ AGREGAR FECHA
-      });
-      
-      onClose();
-      // Resetear formulario
-      setFormData({
-        plantId: '',
-        tipo: 'general',
-        descripcion: '',
-        periodo: 'mensual'
-      });
-    } catch (error) {
-      console.error('Error al generar reporte:', error);
-      alert('Error al generar reporte: ' + (error.response?.data?.message || error.message));
-    }
-  };
+    
+    onClose();
+    setFormData({ plantId: '', tipo: 'general', descripcion: '', periodo: 'mensual' });
+  } catch (error) {
+    console.error('Error al generar reporte:', error);
+    alert('Error al generar reporte: ' + (error.response?.data?.message || error.message));
+  }
+};
 
   const handleClose = () => {
     onClose();
@@ -64,7 +61,8 @@ export default function ModalReporte({ isOpen, onClose, plantas }) {
       plantId: '',
       tipo: 'general',
       descripcion: '',
-      periodo: 'mensual'
+      periodo: 'mensual',
+      titulo:''
     });
   };
 
@@ -144,7 +142,21 @@ export default function ModalReporte({ isOpen, onClose, plantas }) {
               ))}
             </select>
           </div>
-
+<div className="space-y-2">
+    <label htmlFor="titulo" className="block text-sm font-medium text-gray-700">
+        Título del Reporte *
+    </label>
+    <input
+        type="text"
+        id="titulo"
+        name="titulo"
+        required
+        value={formData.titulo}
+        onChange={handleChange}
+        placeholder="Ej: Reporte Mensual de Operaciones"
+        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+    />
+</div>
           {/* Campos Tipo y Período */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Campo Tipo */}

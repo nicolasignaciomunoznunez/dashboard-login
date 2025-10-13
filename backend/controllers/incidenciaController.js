@@ -46,6 +46,14 @@ export const obtenerIncidencia = async (req, res) => {
             });
         }
 
+        // ✅ VERIFICAR PERMISOS: Si es cliente, solo puede ver SUS incidencias
+        if (req.usuario?.rol === 'cliente' && incidencia.userId !== req.usuarioId) {
+            return res.status(403).json({
+                success: false,
+                message: "No tienes permisos para ver esta incidencia"
+            });
+        }
+
         res.status(200).json({
             success: true,
             incidencia
@@ -62,15 +70,40 @@ export const obtenerIncidencia = async (req, res) => {
 export const obtenerIncidencias = async (req, res) => {
     try {
         const { limite = 10, pagina = 1 } = req.query;
-        const incidencias = await Incidencia.obtenerTodas(parseInt(limite), parseInt(pagina));
+        
+        console.log('🔐 [CONTROLLER] Usuario solicitando incidencias:', {
+            usuarioId: req.usuarioId,
+            usuario: req.usuario,
+            rol: req.usuario?.rol
+        });
+
+        // ✅ CONFIGURAR FILTROS SEGÚN ROL
+        let filtros = {};
+        
+        // ✅ SI ES CLIENTE, SOLO VER SUS PROPIAS INCIDENCIAS
+        if (req.usuario?.rol === 'cliente') {
+            filtros.userId = req.usuarioId;
+            console.log('👤 [CONTROLLER] Filtrando para cliente - userId:', req.usuarioId);
+        }
+        // ✅ Técnicos y Admin ven TODAS las incidencias (sin filtro)
+        
+        const incidencias = await Incidencia.obtenerTodas(
+            parseInt(limite), 
+            parseInt(pagina),
+            filtros // ✅ Pasar los filtros al modelo
+        );
+
+        console.log('✅ [CONTROLLER] Incidencias devueltas:', incidencias.length, 'para rol:', req.usuario?.rol);
 
         res.status(200).json({
             success: true,
             incidencias,
             paginacion: {
                 limite: parseInt(limite),
-                pagina: parseInt(pagina)
-            }
+                pagina: parseInt(pagina),
+                total: incidencias.length
+            },
+            filtro: req.usuario?.rol === 'cliente' ? 'mis_incidencias' : 'todas'
         });
     } catch (error) {
         console.log("Error al obtener incidencias:", error);
@@ -84,11 +117,28 @@ export const obtenerIncidencias = async (req, res) => {
 export const obtenerIncidenciasPlanta = async (req, res) => {
     try {
         const { plantId } = req.params;
-        const incidencias = await Incidencia.obtenerPorPlanta(plantId);
+        
+        console.log('🔐 [CONTROLLER] Usuario solicitando incidencias de planta:', {
+            usuarioId: req.usuarioId,
+            rol: req.usuario?.rol,
+            plantId
+        });
+
+        let filtros = { plantId };
+        
+        // ✅ SI ES CLIENTE, SOLO VER SUS INCIDENCIAS EN ESA PLANTA
+        if (req.usuario?.rol === 'cliente') {
+            filtros.userId = req.usuarioId;
+            console.log('👤 [CONTROLLER] Filtrando para cliente en planta:', filtros);
+        }
+        
+        const incidencias = await Incidencia.obtenerPorPlanta(plantId, filtros);
 
         res.status(200).json({
             success: true,
-            incidencias
+            incidencias,
+            total: incidencias.length,
+            filtro: req.usuario?.rol === 'cliente' ? 'mis_incidencias' : 'todas'
         });
     } catch (error) {
         console.log("Error al obtener incidencias de planta:", error);
@@ -102,11 +152,28 @@ export const obtenerIncidenciasPlanta = async (req, res) => {
 export const obtenerIncidenciasEstado = async (req, res) => {
     try {
         const { estado } = req.params;
-        const incidencias = await Incidencia.obtenerPorEstado(estado);
+        
+        console.log('🔐 [CONTROLLER] Usuario solicitando incidencias por estado:', {
+            usuarioId: req.usuarioId,
+            rol: req.usuario?.rol,
+            estado
+        });
+
+        let filtros = { estado };
+        
+        // ✅ SI ES CLIENTE, SOLO VER SUS INCIDENCIAS EN ESE ESTADO
+        if (req.usuario?.rol === 'cliente') {
+            filtros.userId = req.usuarioId;
+            console.log('👤 [CONTROLLER] Filtrando para cliente por estado:', filtros);
+        }
+        
+        const incidencias = await Incidencia.obtenerPorEstado(estado, filtros);
 
         res.status(200).json({
             success: true,
-            incidencias
+            incidencias,
+            total: incidencias.length,
+            filtro: req.usuario?.rol === 'cliente' ? 'mis_incidencias' : 'todas'
         });
     } catch (error) {
         console.log("Error al obtener incidencias por estado:", error);
@@ -121,6 +188,32 @@ export const actualizarIncidencia = async (req, res) => {
     try {
         const { id } = req.params;
         const datosActualizados = req.body;
+
+        // ✅ VERIFICAR PERMISOS: Si es cliente, solo puede actualizar SUS incidencias
+        if (req.usuario?.rol === 'cliente') {
+            const incidencia = await Incidencia.buscarPorId(id);
+            if (!incidencia) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Incidencia no encontrada"
+                });
+            }
+            
+            if (incidencia.userId !== req.usuarioId) {
+                return res.status(403).json({
+                    success: false,
+                    message: "No tienes permisos para actualizar esta incidencia"
+                });
+            }
+            
+            // ✅ Clientes NO pueden cambiar el estado (solo técnicos/admin)
+            if (datosActualizados.estado) {
+                return res.status(403).json({
+                    success: false,
+                    message: "No puedes cambiar el estado de la incidencia"
+                });
+            }
+        }
 
         const incidenciaActualizada = await Incidencia.actualizar(id, datosActualizados);
 
@@ -150,6 +243,14 @@ export const cambiarEstadoIncidencia = async (req, res) => {
             });
         }
 
+        // ✅ SOLO TÉCNICOS Y ADMIN PUEDEN CAMBIAR ESTADO
+        if (req.usuario?.rol === 'cliente') {
+            return res.status(403).json({
+                success: false,
+                message: "No tienes permisos para cambiar el estado de incidencias"
+            });
+        }
+
         const incidenciaActualizada = await Incidencia.cambiarEstado(id, estado);
 
         res.status(200).json({
@@ -169,6 +270,15 @@ export const cambiarEstadoIncidencia = async (req, res) => {
 export const eliminarIncidencia = async (req, res) => {
     try {
         const { id } = req.params;
+        
+        // ✅ CLIENTES NO PUEDEN ELIMINAR INCIDENCIAS
+        if (req.usuario?.rol === 'cliente') {
+            return res.status(403).json({
+                success: false,
+                message: "No tienes permisos para eliminar incidencias"
+            });
+        }
+
         const eliminado = await Incidencia.eliminar(id);
 
         if (!eliminado) {

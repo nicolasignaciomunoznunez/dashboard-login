@@ -2,12 +2,13 @@
 import { useState } from 'react';
 import { useMantenimientoStore } from '../../stores/mantenimientoStore';
 import { useAuthStore } from '../../stores/authStore';
+import BadgeEstado from '../dashboard/BadgeEstado'; // ✅ REUTILIZAR
+import BadgeTipo from '../dashboard/BadgeTipo';     // ✅ REUTILIZAR
 
 export default function ListaMantenimientosPrincipal({ mantenimientos, onEditarMantenimiento, loading }) {
   const { cambiarEstadoMantenimiento } = useMantenimientoStore();
   const { user } = useAuthStore();
   const [mantenimientoActualizando, setMantenimientoActualizando] = useState(null);
-  const [showChecklist, setShowChecklist] = useState(null);
 
   const handleCambiarEstado = async (id, nuevoEstado) => {
     setMantenimientoActualizando(id);
@@ -20,52 +21,7 @@ export default function ListaMantenimientosPrincipal({ mantenimientos, onEditarM
     }
   };
 
-  const getEstadoConfig = (estado) => {
-    const estados = {
-      pendiente: { 
-        label: 'Pendiente', 
-        color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        )
-      },
-      en_progreso: { 
-        label: 'En Progreso', 
-        color: 'bg-blue-50 text-blue-700 border-blue-200',
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        )
-      },
-      completado: { 
-        label: 'Completado', 
-        color: 'bg-green-50 text-green-700 border-green-200',
-        icon: (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        )
-      }
-    };
-    return estados[estado] || estados.pendiente;
-  };
-
-  const getTipoConfig = (tipo) => {
-    return tipo === 'preventivo' 
-      ? { 
-          label: 'Preventivo', 
-          color: 'bg-purple-50 text-purple-700 border-purple-200',
-          icon: '🛡️'
-        }
-      : { 
-          label: 'Correctivo', 
-          color: 'bg-orange-50 text-orange-700 border-orange-200',
-          icon: '🔧'
-        };
-  };
+  // ✅ ELIMINAMOS getEstadoConfig y getTipoConfig - USAMOS BADGES
 
   // Agrupar mantenimientos por estado
   const mantenimientosPendientes = mantenimientos.filter(m => m.estado === 'pendiente');
@@ -92,8 +48,6 @@ export default function ListaMantenimientosPrincipal({ mantenimientos, onEditarM
         
         <div className="space-y-3">
           {mantenimientos.map((mantenimiento) => {
-            const estado = getEstadoConfig(mantenimiento.estado);
-            const tipo = getTipoConfig(mantenimiento.tipo);
             const estaActualizando = mantenimientoActualizando === mantenimiento.id;
             const puedeGestionar = user?.rol === 'admin' || user?.rol === 'tecnico';
 
@@ -107,13 +61,11 @@ export default function ListaMantenimientosPrincipal({ mantenimientos, onEditarM
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${tipo.color}`}>
-                        {tipo.icon} {tipo.label}
-                      </span>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${estado.color}`}>
-                        {estado.icon}
-                        {estado.label}
-                      </span>
+                      {/* ✅ BADGE TIPO - Reemplaza la lógica de tipo */}
+                      <BadgeTipo tipo={mantenimiento.tipo} />
+                      
+                      {/* ✅ BADGE ESTADO - Reemplaza la lógica de estado */}
+                      <BadgeEstado estado={mantenimiento.estado} />
                     </div>
                     
                     <p className="text-gray-900 font-medium text-sm mb-2">{mantenimiento.descripcion}</p>

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useMantenimientoStore } from '../../stores/mantenimientoStore';
 import { usePlantasStore } from '../../stores/plantasStore';
 import { useAuthStore } from '../../stores/authStore';
+import BadgeTipo from '../dashboard/BadgeTipo'; // ✅ REUTILIZAR
+import BadgeEstado from '../dashboard/BadgeEstado'; // ✅ REUTILIZAR
 
 export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, plantaPreSeleccionada }) {
   const { crearMantenimiento, actualizarMantenimiento, loading } = useMantenimientoStore();
@@ -17,17 +19,21 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
   });
   const [errors, setErrors] = useState({});
 
-  const handleClose = () => {
+  // ✅ OPTIMIZACIÓN: useCallback para evitar recreación
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen) {
       obtenerPlantas(50);
     }
-  }, [isOpen]);
+  }, [isOpen, obtenerPlantas]);
 
+  // ✅ OPTIMIZACIÓN: Reset más eficiente
   useEffect(() => {
+    if (!isOpen) return;
+
     if (mantenimiento) {
       setFormData({
         plantId: mantenimiento.plantId || '',
@@ -49,7 +55,8 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
     setErrors({});
   }, [mantenimiento, plantaPreSeleccionada, isOpen]);
 
-  const validateForm = () => {
+  // ✅ OPTIMIZACIÓN: Validación más eficiente
+  const validateForm = useCallback(() => {
     const newErrors = {};
     
     if (!formData.plantId) {
@@ -76,7 +83,7 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -85,12 +92,12 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
       [name]: value
     }));
     
-    // Limpiar error del campo cuando el usuario empiece a escribir
+    // ✅ MEJORA: Limpiar error solo si existe
     if (errors[name]) {
-      setErrors({
-        ...errors,
+      setErrors(prev => ({
+        ...prev,
         [name]: ''
-      });
+      }));
     }
   };
 
@@ -113,29 +120,37 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
       handleClose();
     } catch (error) {
       console.error('Error al guardar mantenimiento:', error);
+      // ✅ MEJORA: Mostrar error al usuario
+      setErrors(prev => ({
+        ...prev,
+        submit: 'Error al guardar el mantenimiento. Intenta nuevamente.'
+      }));
     }
   };
+
+  // ✅ MEJORA: Cerrar modal con ESC
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, handleClose]);
 
   const esEdicion = !!mantenimiento;
   const puedeGestionarEstado = user?.rol === 'admin' || user?.rol === 'tecnico';
 
-  const tiposMantenimiento = {
-    preventivo: { label: 'Preventivo', color: 'text-purple-600 bg-purple-50 border-purple-200' },
-    correctivo: { label: 'Correctivo', color: 'text-orange-600 bg-orange-50 border-orange-200' }
-  };
-
-  const estadosMantenimiento = {
-    pendiente: { label: 'Pendiente', color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-    en_progreso: { label: 'En Progreso', color: 'text-blue-600 bg-blue-50 border-blue-200' },
-    completado: { label: 'Completado', color: 'text-green-600 bg-green-50 border-green-200' }
-  };
+  // ✅ ELIMINAMOS: tiposMantenimiento y estadosMantenimiento - USAMOS BADGES
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div 
-        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all duration-300 scale-100"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl transform transition-all duration-300 scale-100 max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -159,6 +174,7 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
           <button
             onClick={handleClose}
             className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+            aria-label="Cerrar modal"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -167,7 +183,17 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
         </div>
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          {/* Error general de submit */}
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm">{errors.submit}</span>
+            </div>
+          )}
+
           {/* Campo Planta */}
           <div className="space-y-2">
             <label htmlFor="plantId" className="block text-sm font-medium text-gray-700">
@@ -219,9 +245,8 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
                 <option value="preventivo">Preventivo</option>
                 <option value="correctivo">Correctivo</option>
               </select>
-              <span className={`px-4 py-3 rounded-xl text-sm font-medium border ${tiposMantenimiento[formData.tipo]?.color}`}>
-                {tiposMantenimiento[formData.tipo]?.label}
-              </span>
+              {/* ✅ REEMPLAZADO POR BADGE */}
+              <BadgeTipo tipo={formData.tipo} />
             </div>
             <p className="text-xs text-gray-500">
               {formData.tipo === 'preventivo' 
@@ -287,9 +312,12 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
                 {errors.descripcion}
               </p>
             )}
-            <p className="text-xs text-gray-500">
-              Mínimo 10 caracteres. Incluye todos los detalles para una ejecución eficiente.
-            </p>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Mínimo 10 caracteres</span>
+              <span className={formData.descripcion.length < 10 ? 'text-red-500' : 'text-green-500'}>
+                {formData.descripcion.length}/10
+              </span>
+            </div>
           </div>
 
           {/* Campo Estado (solo para admin/tecnico) */}
@@ -310,9 +338,8 @@ export default function ModalMantenimiento({ isOpen, onClose, mantenimiento, pla
                   <option value="en_progreso">En Progreso</option>
                   <option value="completado">Completado</option>
                 </select>
-                <span className={`px-4 py-3 rounded-xl text-sm font-medium border ${estadosMantenimiento[formData.estado]?.color}`}>
-                  {estadosMantenimiento[formData.estado]?.label}
-                </span>
+                {/* ✅ REEMPLAZADO POR BADGE */}
+                <BadgeEstado estado={formData.estado} />
               </div>
               <p className="text-xs text-gray-500">
                 Solo administradores y técnicos pueden modificar el estado.
