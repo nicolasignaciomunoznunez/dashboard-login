@@ -8,7 +8,9 @@ import {
     olvideContraseña,
     restablecerContraseña,
     verificarAutenticacion,
-    obtenerPerfil
+    obtenerPerfil,
+    actualizarPerfil,
+    cambiarContraseña
 } from "../controllers/authController.js";
 import { 
   verificarToken, 
@@ -23,6 +25,8 @@ router.post("/verificar-email", verificarEmail);
 router.post("/iniciar-sesion", iniciarSesion);
 router.post("/olvide-contraseña", olvideContraseña);
 router.post("/restablecer-contraseña/:token", restablecerContraseña);
+router.put('/perfil', verificarToken, actualizarPerfil);
+router.post('/cambiar-password', verificarToken, cambiarContraseña);
 
 // ✅ RUTA CORREGIDA: Usar middleware OPCIONAL para verificar-autenticacion
 router.get("/verificar-autenticacion", verificarTokenOpcional, verificarAutenticacion);

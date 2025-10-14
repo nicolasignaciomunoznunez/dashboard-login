@@ -13,6 +13,7 @@ import Incidencias from './pages/Incidencias';
 import Mantenimiento from './pages/Mantenimiento';
 import Reportes from './pages/Reportes';
 import LandingPage from './pages/LandingPage'; 
+import ProfilePage from './pages/Profile'; // ✅ NUEVA PÁGINA
 
 function App() {
   const { isAuthenticated, login, setLoading, isLoading } = useAuthStore();
@@ -114,6 +115,13 @@ function App() {
               <Reportes />
             </ProtectedRoute>
           } />
+          
+          {/* ✅ PERFIL: Todos los usuarios autenticados pueden ver */}
+          <Route path="perfil" element={
+            <ProtectedRoute roles={['admin', 'tecnico', 'cliente']}>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
         </Route>
 
         {/* ✅ REDIRECCIONES PARA RUTAS DIRECTAS */}
@@ -123,6 +131,7 @@ function App() {
             <Route path="/incidencias" element={<Navigate to="/dashboard/incidencias" replace />} />
             <Route path="/mantenimientos" element={<Navigate to="/dashboard/mantenimientos" replace />} />
             <Route path="/reportes" element={<Navigate to="/dashboard/reportes" replace />} />
+            <Route path="/perfil" element={<Navigate to="/dashboard/perfil" replace />} /> {/* ✅ NUEVA REDIRECCIÓN */}
           </>
         )}
 

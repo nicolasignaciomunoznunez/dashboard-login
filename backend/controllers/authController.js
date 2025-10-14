@@ -69,9 +69,9 @@ export const registrar = async (req, res) => {
 };
 
 export const verificarEmail = async (req, res) => {
-    const { code } = req.body; // Cambia 'codigo' por 'code'
+    const { code } = req.body;
     
-    console.log('📧 Código recibido en backend:', code); // Debug
+    console.log('📧 Código recibido en backend:', code);
     
     try {
         if (!code) {
@@ -103,9 +103,10 @@ export const verificarEmail = async (req, res) => {
                 email: usuarioActualizado.email,
                 nombre: usuarioActualizado.nombre,
                 rol: usuarioActualizado.rol,
-                isVerified: usuarioActualizado.isVerified, // Cambia estaVerificado por isVerified
-                createdAt: usuarioActualizado.createdAt, // Cambia creadoEn por createdAt
-                updatedAt: usuarioActualizado.updatedAt // Cambia actualizadoEn por updatedAt
+                estaVerificado: usuarioActualizado.isVerified, // ✅ Cambiar a estaVerificado
+                ultimoInicioSesion: usuarioActualizado.lastLogin, // ✅ Agregar este campo
+                creadoEn: usuarioActualizado.createdAt, // ✅ Cambiar a creadoEn
+                actualizadoEn: usuarioActualizado.updatedAt // ✅ Cambiar a actualizadoEn
             },
         });
     } catch (error) {
@@ -297,32 +298,34 @@ export const verificarAutenticacion = async (req, res) => {
 };
 
 
-
 export const obtenerPerfil = async (req, res) => {
-	try {
-		const usuario = await Usuario.buscarPorId(req.usuarioId);
-		
-		if (!usuario) {
-			return res.status(404).json({ success: false, message: "Usuario no encontrado" });
-		}
+  try {
+    console.log('🔄 [AUTH CONTROLLER] Obteniendo perfil usuario:', req.usuarioId);
+    
+    const usuario = await Usuario.buscarPorId(req.usuarioId);
+    
+    if (!usuario) {
+      return res.status(404).json({ success: false, message: "Usuario no encontrado" });
+    }
 
-		res.status(200).json({
-			success: true,
-			usuario: {
-				id: usuario.id,
-				email: usuario.email,
-				nombre: usuario.nombre,
-				rol: usuario.rol,
-				estaVerificado: usuario.estaVerificado,
-				ultimoInicioSesion: usuario.ultimoInicioSesion,
-				creadoEn: usuario.creadoEn,
-				actualizadoEn: usuario.actualizadoEn
-			}
-		});
-	} catch (error) {
-		console.log("Error en obtenerPerfil:", error);
-		res.status(500).json({ success: false, message: "Error del servidor" });
-	}
+    // ✅ USAR NOMBRES CONSISTENTES CON iniciarSesion
+    res.status(200).json({
+      success: true,
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+        estaVerificado: usuario.isVerified, // ✅ Cambiar a estaVerificado
+        ultimoInicioSesion: usuario.lastLogin,   // ✅ Cambiar a ultimoInicioSesion  
+        creadoEn: usuario.createdAt,   // ✅ Cambiar a creadoEn
+        actualizadoEn: usuario.updatedAt    // ✅ Cambiar a actualizadoEn
+      }
+    });
+  } catch (error) {
+    console.log("❌ [AUTH CONTROLLER] Error en obtenerPerfil:", error);
+    res.status(500).json({ success: false, message: "Error del servidor" });
+  }
 };
 
 export const obtenerTodosLosUsuarios = async (req, res) => {
@@ -345,4 +348,91 @@ export const obtenerTodosLosUsuarios = async (req, res) => {
             message: error.message
         });
     }
+};
+
+
+// En tu authController.js - AGREGAR:
+export const actualizarPerfil = async (req, res) => {
+  try {
+    const { nombre, email } = req.body;
+    console.log('🔄 [AUTH CONTROLLER] Actualizando perfil usuario:', req.usuarioId);
+    
+    const usuarioActualizado = await Usuario.actualizarPerfil(req.usuarioId, {
+      nombre,
+      email
+    });
+
+    // ✅ USAR NOMBRES CONSISTENTES
+    res.status(200).json({
+      success: true,
+      message: "Perfil actualizado correctamente",
+      usuario: {
+        id: usuarioActualizado.id,
+        email: usuarioActualizado.email,
+        nombre: usuarioActualizado.nombre,
+        rol: usuarioActualizado.rol,
+        estaVerificado: usuarioActualizado.isVerified,
+        ultimoInicioSesion: usuarioActualizado.lastLogin,
+        creadoEn: usuarioActualizado.createdAt,
+        actualizadoEn: usuarioActualizado.updatedAt
+      }
+    });
+  } catch (error) {
+    console.log("❌ [AUTH CONTROLLER] Error en actualizarPerfil:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const cambiarContraseña = async (req, res) => {
+  try {
+    const { contraseñaActual, nuevaContraseña } = req.body;
+    console.log('🔄 [AUTH CONTROLLER] Cambiando contraseña usuario:', req.usuarioId);
+    console.log('📨 [AUTH CONTROLLER] Datos recibidos:', { 
+      contraseñaActual: contraseñaActual ? '***' : 'FALTANTE',
+      nuevaContraseña: nuevaContraseña ? '***' : 'FALTANTE'
+    });
+    
+    // ✅ VERIFICAR QUE LOS CAMPOS EXISTAN
+    if (!contraseñaActual || !nuevaContraseña) {
+      console.log('❌ [AUTH CONTROLLER] Campos faltantes');
+      return res.status(400).json({ 
+        success: false, 
+        message: "Todos los campos son requeridos" 
+      });
+    }
+
+    const usuario = await Usuario.buscarPorId(req.usuarioId);
+    
+    if (!usuario) {
+      console.log('❌ [AUTH CONTROLLER] Usuario no encontrado');
+      return res.status(404).json({ 
+        success: false, 
+        message: "Usuario no encontrado" 
+      });
+    }
+
+    console.log('🔑 [AUTH CONTROLLER] Verificando contraseña actual...');
+    const esContraseñaValida = await bcryptjs.compare(contraseñaActual, usuario.password_hash);
+    
+    if (!esContraseñaValida) {
+      console.log('❌ [AUTH CONTROLLER] Contraseña actual incorrecta');
+      return res.status(400).json({ 
+        success: false, 
+        message: "La contraseña actual es incorrecta" 
+      });
+    }
+
+    console.log('🔑 [AUTH CONTROLLER] Hasheando nueva contraseña...');
+    const nuevaContraseñaHasheada = await bcryptjs.hash(nuevaContraseña, 10);
+    await Usuario.actualizarContraseña(req.usuarioId, nuevaContraseñaHasheada);
+
+    console.log('✅ [AUTH CONTROLLER] Contraseña cambiada exitosamente');
+    res.status(200).json({
+      success: true,
+      message: "Contraseña actualizada correctamente"
+    });
+  } catch (error) {
+    console.log("❌ [AUTH CONTROLLER] Error en cambiarContraseña:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 };

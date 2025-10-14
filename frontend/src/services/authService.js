@@ -70,4 +70,20 @@ export const authService = {
     });
     return response.data;
   },
+  // Actualizar perfil
+actualizarPerfil: async (datosPerfil) => {
+  console.log('🔐 [AUTH SERVICE] Actualizando perfil...', datosPerfil);
+  const response = await api.put('/auth/perfil', datosPerfil);
+  console.log('🔐 [AUTH SERVICE] Perfil actualizado:', response.data);
+  return response.data;
+},
+
+// Cambiar contraseña
+cambiarContraseña: async (datosContraseña) => {
+  console.log('🔐 [AUTH SERVICE] Cambiando contraseña...');
+  const response = await api.post('/auth/cambiar-password', datosContraseña);
+  console.log('🔐 [AUTH SERVICE] Contraseña cambiada:', response.data);
+  return response.data;
+},
+
 };
